@@ -1,5 +1,7 @@
 package sd2223.trab1.api.rest;
 
+import java.util.List;
+
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -13,8 +15,8 @@ import jakarta.ws.rs.core.MediaType;
 
 import sd2223.trab1.api.User;
 
-@Path(UserService.PATH)
-public interface UserService {
+@Path(UsersService.PATH)
+public interface UsersService {
 
 	String PATH = "/users";
 	
@@ -22,8 +24,8 @@ public interface UserService {
 	 * Creates a new user in the local domain.
 	 * @param user User to be created
 	 * @return 200 the address of the user (name@domain). 
-	 * 			403 if the domain in the user does not match the domain of the server 
-	 * 			409 otherwise
+	 * 		409 if the userId already exists. 
+	 * 		400 otherwise.
 	 */
 	@POST
 	@Path("/")
@@ -35,10 +37,10 @@ public interface UserService {
 	 * Obtains the information on the user identified by name
 	 * @param name the name of the user
 	 * @param pwd password of the user
-	 * @return 200 the user object, if the name exists and pwd matches the existing
-	 *         password
-	 *         403 if the password is incorrect or the user does not exist 
-	 *         409 otherwise
+	 * @return 200 and the user object, if the userId exists and password matches the
+	 *         existing password; 
+	 *         403 if the password is incorrect; 
+	 *         404 if no user exists with the provided userId
 	 */
 	@GET
 	@Path("/{name}")
@@ -51,10 +53,11 @@ public interface UserService {
 	 * @param name the name of the user
 	 * @param pwd password of the user
 	 * @param user Updated information
-	 * @return 200 the updated user object, if the name exists and pwd matches the
-	 *         existing password 
-	 *         403 if the password is incorrect or the user does not exist 
-	 *         409 otherwise
+	 * @return 200 the updated user object, if the name exists and password matches
+	 *         the existing password 
+	 *         403 if the password is incorrect 
+	 *         404 if no user exists with the provided userId 
+	 *         400 otherwise.
 	 */
 	@PUT
 	@Path("/{name}")
@@ -68,7 +71,8 @@ public interface UserService {
 	 * @param pwd password of the user
 	 * @return 200 the deleted user object, if the name exists and pwd matches the
 	 *         existing password 
-	 *         403 if the password is incorrect or the user does not exist 
+	 *         403 if the password is incorrect 
+	 *         404 if no user exists with the provided userId
 	 *         409 otherwise
 	 */
 	@DELETE
@@ -76,4 +80,16 @@ public interface UserService {
 	@Produces(MediaType.APPLICATION_JSON)
 	User deleteUser(@PathParam("name") String name, @QueryParam("pwd") String pwd);
 	
+	/**
+	 * Returns the list of users for which the pattern is a substring of the name
+	 * (of the user), case-insensitive. The password of the users returned by the
+	 * query must be set to the empty string "".
+	 * 
+	 * @param pattern substring to search
+	 * @return 200 when the search was successful, regardless of the number of hits
+	 *         (including 0 hits). 400 otherwise.
+	 */
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	List<User> searchUsers(@QueryParam("query") String pattern);
 }

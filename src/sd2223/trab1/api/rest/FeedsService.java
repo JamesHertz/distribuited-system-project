@@ -30,7 +30,7 @@ public interface FeedsService {
 	 * @param pwd password of the user sending the message
 	 * @return 200 the unique numerical identifier for the posted message;
 	 * 403 if the publisher does not exist in the current domain or if the pwd is not correct
-	 * 409 otherwise
+	 * 400 otherwise
 	 */
 	@POST
 	@Path("/{user}/{domain}")
@@ -62,7 +62,7 @@ public interface FeedsService {
 	 * @param mid id of the message
 	 *
 	 * @return 200 the message if it exists;
-	 *  404 if the message does not exists
+	 *  404 if the user or the message does not exists
 	 */
 	@GET
 	@Path("/{user}/{mid}")
@@ -70,8 +70,8 @@ public interface FeedsService {
 	Message getMessage(@PathParam("user") String user, @PathParam("mid") long mid);
 
 	/**
-	 * Returns a list of all messages stored in the server for a given user with timestamp smaller than time
-	 * (may be a remote user)
+	 * Returns a list of all messages stored in the server for a given user newer than time
+	 * (note: may be a remote user)
 	 * 
 	 * @param user user feed being accessed (format user@domain)
 	 * @param time the oldest time of the messages to be returned
@@ -94,7 +94,7 @@ public interface FeedsService {
 	 * @param userSub the user to be subscribed (followed) (format user@domain)
 	 * @param pwd password of the user to subscribe
 	 * @return 200 if ok
-	 * 400 is generated if the user to be subscribed does not exist
+	 * 404 is generated if the user to be subscribed does not exist
 	 * 403 is generated if the user does not exist or if the pwd is not correct
 	 */
 	@POST
@@ -113,7 +113,7 @@ public interface FeedsService {
 	 * @param pwd password of the user to subscribe
 	 * @return 200 if ok
 	 * 403 is generated if the user does not exist or if the pwd is not correct
-	 * 403 is generated if the userSub is not subscribed
+	 * 404 is generated if the userSub is not subscribed
 	 */
 	@DELETE
 	@Path("/sub/{user}/{userSub}")
@@ -128,7 +128,7 @@ public interface FeedsService {
 	 *
 	 * @param user user being accessed (format user@domain)
 	 * @return 200 if ok
-	 * 403 is generated if the user does not exist or if the pwd is not correct
+	 * 404 is generated if the user does not exist
 	 */
 	@GET
 	@Path("/sub/list/{user}")
