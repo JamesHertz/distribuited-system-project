@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 public class Main {
     // <nome-do-domínio>:<serviço><tab><uri-do-servidor>
-    private static final Pattern PATTERN = Pattern.compile("(.+):(.+)\t(.+)");
+    private static final Pattern PATTERN = Pattern.compile("(.+):(feeds|users)\t(.+)");
 
     public static void main(String[] args) {
         //if(args.length < 1){
@@ -27,6 +27,7 @@ public class Main {
             String service    = matcher.group(2);
             URI serverURI     = URI.create(matcher.group(3));
             ResourceConfig config = new ResourceConfig();
+
             switch (service){
                 case "feeds" -> config.register(FeedsServiceImpl.class);
                 case "users" -> config.register(UsersServiceImpl.class);
@@ -40,6 +41,7 @@ public class Main {
             System.out.printf("%s Server running %s service @ %s\n", serverName, service, serverURI);
         } else {
             System.out.println("ERROR: invalid server-config");
+            System.exit(1);
         }
 
     }
