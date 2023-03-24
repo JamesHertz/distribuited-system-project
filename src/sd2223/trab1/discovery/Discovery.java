@@ -53,11 +53,11 @@ class DiscoveryImpl implements Discovery {
 	// The pre-aggreed multicast endpoint assigned to perform discovery.
 	static final int DISCOVERY_RETRY_TIMEOUT = 5000;
 	static final int DISCOVERY_ANNOUNCE_PERIOD = 1000;
-	static final int DISCOVERY_PORT = 9001;
+	static final int DISCOVERY_PORT = 2266;
 
 	// Replace with appropriate values...
 	// multicast IP range: 224.0.0.0 to 239.255.255.255
-	static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("224.255.255.255", DISCOVERY_PORT);
+	static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", DISCOVERY_PORT);
 
 	// Used separate the two fields that make up a service announcement.
 	private static final String DELIMITER = "\t";

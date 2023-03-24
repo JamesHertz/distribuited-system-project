@@ -8,6 +8,9 @@ import java.util.List;
 
 public class FeedsServiceImpl implements FeedsService {
 
+    public FeedsServiceImpl(String domain){
+
+    }
     @Override
     public long postMessage(String user, String pwd, Message msg) {
         return 0;
@@ -29,7 +32,7 @@ public class FeedsServiceImpl implements FeedsService {
     }
 
     @Override
-    public void subUser(String user, long userSub, String pwd) {
+    public void subUser(String user, String userSub, String pwd) {
 
     }
 
@@ -39,7 +42,8 @@ public class FeedsServiceImpl implements FeedsService {
     }
 
     @Override
-    public List<User> listSubs(String user) {
+    public List<String> listSubs(String user) {
         return null;
     }
+
 }
