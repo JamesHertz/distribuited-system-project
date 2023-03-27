@@ -8,8 +8,11 @@ import java.util.List;
 
 public class FeedsServiceImpl implements FeedsService {
 
-    public FeedsServiceImpl(String domain){
+    private final String domain;
+   // private final Map<S>
 
+    public FeedsServiceImpl(String domain){
+        this.domain = domain;
     }
     @Override
     public long postMessage(String user, String pwd, Message msg) {

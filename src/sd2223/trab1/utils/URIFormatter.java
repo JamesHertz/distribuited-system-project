@@ -1,8 +1,8 @@
-package sd2223.trab1.server.services;
+package sd2223.trab1.utils;
 
 import java.net.URI;
 
-public class Utils {
+public class URIFormatter {
 
     public static final String SERVER_URI_FMT = "http://%s:%s/rest";
     public static final String SERVER_NAME_FORMAT = "%s:%s";
