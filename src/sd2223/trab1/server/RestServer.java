@@ -35,7 +35,7 @@ public class RestServer {
             String service = args[1]; //"users";
             String serverID = getServiceID(domain, service);//String.format(SERVER_NAME_FORMAT, domain, service);
             String serverName = InetAddress.getLocalHost().getHostName();
-            URI serverURI = getRestURI(serverID, PORT); //URI.create(String.format(SERVER_URI_FMT, serverName, PORT));
+            URI serverURI = getRestURI(serverName, PORT); //URI.create(String.format(SERVER_URI_FMT, serverName, PORT));
 
             Discovery ds = Discovery.getInstance();
             ds.announce(serverID, serverURI.toString());
