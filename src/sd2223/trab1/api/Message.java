@@ -1,9 +1,12 @@
 package sd2223.trab1.api;
 
+import java.util.Random;
+
 /**
  * Represents a message in the system.
  */
 public class Message {
+	private static long lastID = new Random().nextLong();
 
 	private long id;
 	private String user;
@@ -70,5 +73,9 @@ public class Message {
 	public String toString() {
 		return "Message [id=" + id + ", user=" + user + ", domain=" + domain + ", creationTime=" + creationTime
 				+ ", text=" + text + "]";
+	}
+
+	public static long nextID(){
+		return lastID++;
 	}
 }

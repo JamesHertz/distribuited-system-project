@@ -5,7 +5,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import sd2223.trab1.discovery.Discovery;
 import sd2223.trab1.server.services.FeedsServiceImpl;
 import sd2223.trab1.server.services.UsersServiceImpl;
-import static sd2223.trab1.utils.URIFormatter.*;
+import static sd2223.trab1.utils.Formatter.*;
 
 import java.io.IOException;
 import java.net.InetAddress;

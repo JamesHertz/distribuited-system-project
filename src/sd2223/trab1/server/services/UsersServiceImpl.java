@@ -2,6 +2,8 @@ package sd2223.trab1.server.services;
 
 import jakarta.ws.rs.WebApplicationException;
 import static jakarta.ws.rs.core.Response.Status;
+import static sd2223.trab1.utils.Formatter.USER_FORMAT_SEP;
+
 import sd2223.trab1.api.User;
 import sd2223.trab1.api.rest.UsersService;
 
@@ -13,7 +15,6 @@ import java.util.stream.Collectors;
 
 public class UsersServiceImpl implements UsersService {
 
-    private static final String USER_ADDR_FORMAT = "%s@%s";
     private static Logger Log = Logger.getLogger(UsersServiceImpl.class.getName());
     private final String domain;
     private final Map<String, User> users;
@@ -36,7 +37,7 @@ public class UsersServiceImpl implements UsersService {
             users.put(userName, user);
         }
 
-        return String.format(USER_ADDR_FORMAT, userName, domain);
+        return userName + USER_FORMAT_SEP + domain;
     }
 
     @Override

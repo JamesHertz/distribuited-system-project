@@ -1,8 +1,15 @@
 package sd2223.trab1.server.services;
 
+import jakarta.ws.rs.WebApplicationException;
+import static jakarta.ws.rs.core.Response.Status;
+
+import jakarta.ws.rs.client.Client;
 import sd2223.trab1.api.Message;
 import sd2223.trab1.api.User;
 import sd2223.trab1.api.rest.FeedsService;
+import sd2223.trab1.utils.RestClient;
+
+import static sd2223.trab1.utils.Formatter.USER_FORMAT_SEP;
 
 import java.util.List;
 
@@ -16,6 +23,15 @@ public class FeedsServiceImpl implements FeedsService {
     }
     @Override
     public long postMessage(String user, String pwd, Message msg) {
+        String[] info = user.split(USER_FORMAT_SEP);
+
+        // 	private String user;
+        //	private String domain;
+        //	private long creationTime;
+        //	private String text;
+        if(info.length != 2 || msg.getUser() == null || msg.getDomain() == null )
+            throw new WebApplicationException( Status.BAD_REQUEST );
+
         return 0;
     }
 
