@@ -5,11 +5,11 @@ import org.glassfish.jersey.server.ResourceConfig;
 import sd2223.trab1.discovery.Discovery;
 import sd2223.trab1.server.services.FeedsServiceImpl;
 import sd2223.trab1.server.services.UsersServiceImpl;
+import static sd2223.trab1.server.services.Utils.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.logging.Logger;
 
 public class RestServer {
@@ -18,11 +18,10 @@ public class RestServer {
 
     private static Logger Log = Logger.getLogger(RestServer.class.getName());
     public static final int PORT = 8080;
-    private static final String SERVER_URI_FMT = "http://%s:%s/rest";
-    private static final String SERVER_NAME_FORMAT = "%s:%s";
-
-    private static final String USERS_SERVICE = "users";
-    private static final String FEEDS_SERVICE = "feeds";
+    //private static final String SERVER_URI_FMT = "http://%s:%s/rest";
+    //private static final String SERVER_NAME_FORMAT = "%s:%s";
+    //private static final String USERS_SERVICE = "users";
+    //private static final String FEEDS_SERVICE = "feeds";
 
     public static void main(String[] args) {
         if(args.length < 2){
@@ -34,9 +33,9 @@ public class RestServer {
 
             String domain =  args[0]; //"nova";
             String service = args[1]; //"users";
-            String serverID = String.format(SERVER_NAME_FORMAT, domain, service);
+            String serverID = getServiceID(domain, service);//String.format(SERVER_NAME_FORMAT, domain, service);
             String serverName = InetAddress.getLocalHost().getHostName();
-            URI serverURI = URI.create(String.format(SERVER_URI_FMT, serverName, PORT));
+            URI serverURI = getRestURI(serverID, PORT); //URI.create(String.format(SERVER_URI_FMT, serverName, PORT));
 
             Discovery ds = Discovery.getInstance();
             ds.announce(serverID, serverURI.toString());
