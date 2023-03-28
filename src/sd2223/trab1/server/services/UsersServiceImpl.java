@@ -139,8 +139,14 @@ public class UsersServiceImpl implements UsersService {
     }
 
     @Override
-    public List<User> searchUsers(String pattern) {
+    public List<User> searchUsers(String pattern) { // TODO: ask about this :)
         Log.info("searchUsers: query=" + pattern);
+
+        if(pattern == null){
+            Log.info("Invalid query.");
+            throw new WebApplicationException( Status.BAD_REQUEST );
+        }
+
         synchronized (users){
             return users.values()
                     .stream()

@@ -24,13 +24,10 @@ public class RestClient {
 	protected static final int RETRY_SLEEP = 3000;
 	protected static final int MAX_RETRIES = 10;
 
-	final URI serverURI;
 	final Client client;
 	final ClientConfig config;
-	final WebTarget target;
 
-	RestClient(URI serverURI) {
-		this.serverURI = serverURI;
+	public RestClient() {
 		this.config = new ClientConfig();
 
 		config.property(ClientProperties.READ_TIMEOUT, READ_TIMEOUT);
@@ -38,8 +35,6 @@ public class RestClient {
 		
 		this.client = ClientBuilder.newClient(config);
 
-		// todo: change late :)
-		this.target = client.target( serverURI );
 	}
 
 	protected <T> T reTry(Supplier<T> func) {
@@ -65,9 +60,9 @@ public class RestClient {
 		}
 	}
 
-	public User getUser(String userID, String pwd){
+	public User getUser(URI server, String userID, String pwd){
 		return reTry(() -> {
-			Response r = target.path( UsersService.PATH )
+			Response r = client.target(server).path( UsersService.PATH )
 					.path( userID )
 					.queryParam( UsersService.PWD, pwd).request()
 					.get();
