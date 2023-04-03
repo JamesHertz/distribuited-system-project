@@ -5,7 +5,7 @@ import java.net.URI;
 import sd2223.api.User;
 import sd2223.clients.rest.RestUsersClient;
 import sd2223.clients.soap.SoapUsersClient;
-import sd2223.servers.rest.RestUsersServer;
+import sd2223.servers.rest.resources.RestUsersServer;
 import sd2223.servers.soap.SoapUsersServer;
 
 public class Test {

@@ -1,4 +1,4 @@
-package sd2223.servers.rest;
+package sd2223.servers.rest.resources;
 
 import sd2223.api.java.Result;
 import jakarta.ws.rs.WebApplicationException;

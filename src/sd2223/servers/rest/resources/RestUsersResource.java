@@ -1,4 +1,4 @@
-package sd2223.servers.rest;
+package sd2223.servers.rest.resources;
 
 import java.util.List;
 
@@ -13,7 +13,11 @@ public class RestUsersResource extends RestResource implements UsersService {
 
 	final Users impl;
 	public RestUsersResource() {
-		this.impl = new JavaUsers();
+		this(null);
+	}
+
+	public RestUsersResource(String domain) {
+		this.impl = new JavaUsers(domain);
 	}
 	
 	@Override
