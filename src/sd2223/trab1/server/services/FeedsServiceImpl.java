@@ -38,26 +38,31 @@ public class FeedsServiceImpl implements FeedsService {
     @Override
     public long postMessage(String user, String pwd, Message msg) {
         Log.info("PostMessage: user=" + user + " ; pwd=" + pwd + " ; msg=" + msg);
-        String[] info = user.split(USER_FORMAT_SEP);
+        String[] info = user.split(USER_FORMAT_SEP); // name, domain
 
-        if(info.length != 2 || msg.getUser() == null || msg.getDomain() == null
-            || ! this.domain.equals( msg.getDomain() ) || ! msg.getDomain().equals( info[1] ) )
+        if(     info.length != 2   //Bad format
+                || msg.getUser() == null  //No message
+                || msg.getDomain() == null  //No domain
+                || ! this.domain.equals( msg.getDomain()) //Trying to send message to other domain that is not this one
+                || ! msg.getDomain().equals( info[1] ) ) //Trying to send message to other domain that is not the users domain
         {
             Log.info("Bad request.");
             throw new WebApplicationException( Status.BAD_REQUEST );
         }
 
-        Discovery ds = Discovery.getInstance();
+        Discovery ds = Discovery.getInstance(); //Let's get discovery
         String domain = info[1];
-        URI[] serverURI = ds.knownUrisOf( getServiceID(domain, USERS_SERVICE), 1);
+        URI[] serverURI = ds.knownUrisOf( getServiceID(domain, USERS_SERVICE), 1); //And check if this server domain is active here
 
-        if(serverURI.length == 0 || gateway.getUser(serverURI[0], info[0], pwd) == null) {
+        if(     serverURI.length == 0 //No server domains found
+                || gateway.getUser(serverURI[0], info[0], pwd) == null) //If password incorrect and if user exists
+        {
             Log.info("Something is wrong with the user info :(");
             throw new WebApplicationException( Status.FORBIDDEN );
         }
 
 
-        synchronized (messages){
+        synchronized (messages){ //Update the messages of the user :)
            List<Message> userMsg = messages.computeIfAbsent(user, k -> new LinkedList<>());
            msg.setId( Message.nextID() );
            userMsg.add(msg);
@@ -68,6 +73,39 @@ public class FeedsServiceImpl implements FeedsService {
 
     @Override
     public void removeFromPersonalFeed(String user, long mid, String pwd) {
+        String[] info = user.split(USER_FORMAT_SEP); // name, domain
+
+        Discovery ds = Discovery.getInstance(); //Let's get discovery
+        String domain = info[1];
+        URI[] serverURI = ds.knownUrisOf( getServiceID(domain, USERS_SERVICE), 1); //And check if this server domain is active here
+
+        if(     serverURI.length == 0 //No server domains found
+                || gateway.getUser(serverURI[0], info[0], pwd) == null) //If password incorrect (?)
+        {
+            Log.info("Something is wrong with the user info :(");
+            throw new WebApplicationException( Status.FORBIDDEN );
+        }
+
+        synchronized (messages){ //Update the messages of the user :)
+            List<Message> userMsg = messages.get(user);
+            if(userMsg == null){
+                Log.info("User has no messages");
+                throw new WebApplicationException( Status.NOT_FOUND);
+            }
+            int targetIdx = 0;
+            for (Message m : userMsg) {
+                if(m.getId() == mid){
+                    break;
+                }
+                targetIdx++;
+            }
+            if(targetIdx == userMsg.size()){
+                Log.info("Message not found");
+                throw new WebApplicationException( Status.NOT_FOUND);
+            }
+
+            userMsg.remove(targetIdx);
+        }
 
     }
 
