@@ -2,7 +2,7 @@ package sd2223.api.rest;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
-import sd2223.trab1.api.Message;
+import sd2223.api.Message;
 
 import java.util.List;
 
