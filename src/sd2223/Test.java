@@ -5,13 +5,13 @@ import java.net.URI;
 import sd2223.api.User;
 import sd2223.clients.rest.RestUsersClient;
 import sd2223.clients.soap.SoapUsersClient;
-import sd2223.servers.rest.resources.RestUsersServer;
+// import sd2223.servers.rest.resources.RestUsersServer;
 import sd2223.servers.soap.SoapUsersServer;
 
 public class Test {
 	public static void main(String[] args) throws Exception {
 
-		RestUsersServer.main(new String[] {} );
+		// RestUsersServer.main(new String[] {} );
 		SoapUsersServer.main(new String[] {} );
 		
 		var uriRest = URI.create("http://localhost:8080/rest");

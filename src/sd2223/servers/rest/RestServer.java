@@ -9,7 +9,6 @@ import sd2223.trab1.discovery.Discovery;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
-import java.util.logging.Logger;
 
 import static sd2223.utils.Formatter.*;
 

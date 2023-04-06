@@ -10,6 +10,7 @@ import sd2223.api.User;
 import sd2223.api.java.Result;
 import sd2223.api.java.Result.ErrorCode;
 import sd2223.api.java.Users;
+import sd2223.utils.Formatter;
 
 public class JavaUsers implements Users {
 	private final Map<String,User> users;
@@ -29,9 +30,10 @@ public class JavaUsers implements Users {
 		Log.info("createUser : " + user);
 		
 		// Check if user data is valid
-		if(user.getName() == null || user.getPwd() == null || user.getDisplayName() == null || user.getDomain() == null || !user.getDomain().equals(domain)) {
+		if(user.getName() == null || user.getPwd() == null || user.getDisplayName() == null
+				|| user.getDomain() == null || !user.getDomain().equals(domain) ) {
 			Log.info("User object invalid.");
-			return Result.error( ErrorCode.BAD_REQUEST);
+			return Result.error( ErrorCode.BAD_REQUEST );
 		}
 
 		synchronized (users){
@@ -42,7 +44,7 @@ public class JavaUsers implements Users {
 			}
 		}
 
-		return Result.ok( user.getName() );
+		return Result.ok( Formatter.makeUserAddress( user.getName() , this.domain ) );
 	}
 
 	@Override
@@ -80,7 +82,8 @@ public class JavaUsers implements Users {
 	public Result<User> updateUser(String name, String pwd, User user) {
 		Log.info("updateUser: name=" + name + " ; pwd= " + pwd + " ; user=" + user) ;
 
-		if( name == null || pwd == null ) { // todo: ask professor
+		if(/* name == null ||*/ pwd == null || user == null
+				/*|| user.getName() != null || user.getDomain() != null */) { // todo: ask professor
 			Log.info("Invalid username or password.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
@@ -155,11 +158,13 @@ public class JavaUsers implements Users {
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
 
+		String auxPattern = pattern.toLowerCase();
 		synchronized (users){
 			return Result.ok(
 					users.values()
 					     .stream()
-					     .filter(u -> u.getName().contains(pattern) )
+					     .filter(u -> u.getName().toLowerCase().contains(auxPattern) )
+						 .map( u ->  new User(u.getName(), "", u.getDomain(), u.getDisplayName()))
 					     .collect(Collectors.toList())
 			);
 		}
