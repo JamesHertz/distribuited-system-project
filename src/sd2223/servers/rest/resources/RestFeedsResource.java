@@ -1,6 +1,7 @@
 package sd2223.servers.rest.resources;
 
 import sd2223.api.java.Feeds;
+import sd2223.api.java.Result;
 import sd2223.api.rest.FeedsService;
 import sd2223.servers.java.JavaFeeds;
 import sd2223.api.Message;
@@ -9,8 +10,9 @@ import java.util.List;
 
 public class RestFeedsResource extends RestResource implements FeedsService {
     private final Feeds impl;
-    public RestFeedsResource(String domain){
-        impl = new JavaFeeds(domain);
+
+    public RestFeedsResource(Feeds impl){
+        this.impl = impl;
     }
 
     @Override

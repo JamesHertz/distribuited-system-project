@@ -16,10 +16,11 @@ public class RestUsersResource extends RestResource implements UsersService {
 		this(null);
 	}
 
-	public RestUsersResource(String domain) {
-		this.impl = new JavaUsers(domain);
+
+	public RestUsersResource(Users impl) {
+		this.impl = impl;
 	}
-	
+
 	@Override
 	public String createUser(User user) {
 		return super.fromJavaResult( impl.createUser( user));
@@ -50,5 +51,10 @@ public class RestUsersResource extends RestResource implements UsersService {
 		return super.fromJavaResult( impl.searchUsers(pattern) );
 	}
 
-		
+	@Override
+	public void verifyPassword(String name, String pwd) {
+		super.fromJavaResult( impl.verifyPassword(name, pwd) );
+	}
+
+
 }

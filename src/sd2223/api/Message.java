@@ -6,7 +6,6 @@ import java.util.Random;
  * Represents a message in the system.
  */
 public class Message {
-	private static long lastID = new Random().nextLong(100000, 2000000);
 
 	private long id;
 	private String user;
@@ -75,7 +74,4 @@ public class Message {
 				+ ", text=" + text + "]";
 	}
 
-	public static long nextID(){
-		return lastID++;
-	}
 }

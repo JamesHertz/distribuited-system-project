@@ -95,7 +95,7 @@ public interface UsersService {
 	List<User> searchUsers(@QueryParam(QUERY) String pattern);
 	
 	
-	//@GET
-	//@Path("/{" + NAME+ "}/" + PWD)
-	//void verifyPassword(@PathParam(NAME) String name, @QueryParam(PWD) String pwd);
+	@GET
+	@Path("/{" + NAME+ "}/" + PWD)
+	void verifyPassword(@PathParam(NAME) String name, @QueryParam(PWD) String pwd);
 }
