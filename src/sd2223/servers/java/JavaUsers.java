@@ -82,43 +82,43 @@ public class JavaUsers implements Users {
 	public Result<User> updateUser(String name, String pwd, User user) {
 		Log.info("updateUser: name=" + name + " ; pwd= " + pwd + " ; user=" + user) ;
 
-		if(  pwd == null || user == null || user.getName() == null || name == null  ) {
-			Log.info("Invalid request.");
+		if( user != null && name != null && pwd != null ){
+			User oldUser;
+			synchronized (users){
+				oldUser = users.get(name);
+			}
+
+			if( oldUser == null ){
+				Log.info("User not found.");
+				return Result.error( ErrorCode.NOT_FOUND );
+			}
+
+			if(! oldUser.getPwd().equals(pwd) ) {
+				Log.info("Wrong password.");
+				return Result.error(ErrorCode.FORBIDDEN);
+			}
+
+			if ( ! name.equals(user.getName())) {
+				Log.info("Invalid username.");
+				return Result.error( ErrorCode.BAD_REQUEST );
+			}
+
+			if( user.getDisplayName() == null ) user.setDisplayName( oldUser.getDisplayName() );
+
+			if( user.getPwd() == null ) user.setPwd( oldUser.getPwd() );
+
+			user.setDomain(this.domain);
+			//user.setName(name);
+
+			synchronized (users){
+				users.put(name, user);
+			}
+
+			return Result.ok(user);
+
+		} else {
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
-
-		if ( ! name.equals( user.getName() ) ){
-			Log.info("Invalid username");
-			return Result.error( ErrorCode.FORBIDDEN);
-		}
-
-		User oldUser;
-		synchronized (users){
-			oldUser = users.get(name);
-		}
-
-		if( oldUser == null ) {
-			Log.info("User doesn't exist.");
-			return Result.error( ErrorCode.NOT_FOUND );
-		}
-
-		if(! oldUser.getPwd().equals(pwd) ) {
-			Log.info("Wrong password.");
-			return Result.error( ErrorCode.FORBIDDEN );
-		}
-
-		if( user.getDisplayName() == null ) user.setDisplayName( oldUser.getDisplayName() );
-
-        if( user.getPwd() == null ) user.setPwd( oldUser.getPwd() );
-
-        user.setDomain(this.domain);
-        //user.setName(name);
-
-		synchronized (users){
-			users.put(name, user);
-		}
-
-        return Result.ok(user);
 	}
 
 	@Override

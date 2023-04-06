@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e 
+
 [ ! "$(docker network ls | grep sdnet )" ] && \
 	docker network create --driver=bridge --subnet=172.20.0.0/16 sdnet
 
@@ -14,6 +16,7 @@ case "$1" in
   --build|-b)
       echo "Building project..."
       mvn clean compile assembly:single  docker:build
+      shift
       ;;
 esac
 #execute the client with the given command line parameters
