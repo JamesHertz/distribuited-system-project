@@ -15,8 +15,7 @@ import java.net.URI;
 import static sd2223.trab1.utils.Formatter.*;
 
 public class RestServer {
-    // <nome-do-domínio>:<serviço><tab><uri-do-servidor>
-    // private static final Pattern PATTERN = Pattern.compile("(.+):(feeds|users)\t(.+)");
+    public static final int PORT = 8080;
 
     public static void main(String[] args) {
         if(args.length < 2){
