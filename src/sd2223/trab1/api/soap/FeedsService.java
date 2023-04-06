@@ -1,10 +1,10 @@
 package sd2223.trab1.api.soap;
 
-import java.util.List;
-
 import jakarta.jws.WebMethod;
 import jakarta.jws.WebService;
 import sd2223.trab1.api.Message;
+
+import java.util.List;
 
 @WebService(serviceName=FeedsService.NAME, targetNamespace=FeedsService.NAMESPACE, endpointInterface=FeedsService.INTERFACE)
 public interface FeedsService {

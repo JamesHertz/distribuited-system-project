@@ -3,12 +3,10 @@ package sd2223.trab1.utils;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
-import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.Response;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import sd2223.trab1.api.User;
-import sd2223.trab1.api.rest.FeedsService;
 import sd2223.trab1.api.rest.UsersService;
 
 import java.net.URI;

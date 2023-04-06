@@ -2,6 +2,7 @@ package sd2223.trab1.api.rest;
 
 import java.util.List;
 
+import sd2223.trab1.api.User;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -12,7 +13,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
-import sd2223.trab1.api.User;
 
 @Path(UsersService.PATH)
 public interface UsersService {
@@ -26,7 +26,7 @@ public interface UsersService {
 	 * Creates a new user in the local domain.
 	 * @param user User to be created
 	 * @return 200 the address of the user (name@domain). 
-	 * 		409 if the userId already exists. 
+	 * 		409 if the name already exists. 
 	 * 		400 otherwise.
 	 */
 	@POST
@@ -41,8 +41,7 @@ public interface UsersService {
 	 * @return 200 and the user object, if the userId exists and password matches the
 	 *         existing password; 
 	 *         403 if the password is incorrect; 
-	 *         404 if no user exists with the provided userId
-	 * 		400 otherwise.
+	 *         404 if no user exists with the provided name
 	 */
 	@GET
 	@Path("/{" + NAME+ "}")
@@ -58,7 +57,7 @@ public interface UsersService {
 	 * @return 200 the updated user object, if the name exists and password matches
 	 *         the existing password 
 	 *         403 if the password is incorrect 
-	 *         404 if no user exists with the provided userId 
+	 *         404 if no user exists with the provided name 
 	 *         400 otherwise.
 	 */
 	@PUT
@@ -74,8 +73,8 @@ public interface UsersService {
 	 * @return 200 the deleted user object, if the name exists and pwd matches the
 	 *         existing password 
 	 *         403 if the password is incorrect 
-	 *         404 if no user exists with the provided userId
-	 *         400 otherwise
+	 *         404 if no user exists with the provided name
+	 *         409 otherwise
 	 */
 	@DELETE
 	@Path("/{" + NAME+ "}")
@@ -94,4 +93,9 @@ public interface UsersService {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	List<User> searchUsers(@QueryParam(QUERY) String pattern);
+	
+	
+	@GET
+	@Path("/{" + NAME+ "}/" + PWD)
+	void verifyPassword(@PathParam(NAME) String name, @QueryParam(PWD) String pwd);
 }

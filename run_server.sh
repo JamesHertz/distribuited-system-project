@@ -14,8 +14,9 @@ if [[ "$1" = "-b" ||  "$1" = "--build" ]]; then
 fi
 
 if [ "$1" = "-p" ]; then
-    echo "using port $PORT"
-    EXPOSED="-p $PORT:$PORT"
+    [[ "$2" =~ ^[0-9]+$ ]] && IN_PORT=$2 && shift || IN_PORT=$PORT
+    echo "using port $IN_PORT"
+    EXPOSED="-p $IN_PORT:$PORT"
     shift
 fi
 
@@ -27,7 +28,7 @@ if [ $# -lt 2 ] ; then
 fi
 
 #CMD="java -cp "$JAR_FILE" sd2223.trab1.server.RestServer $@"
-CMD="java -cp "$JAR_FILE" sd2223.servers.rest.RestServer $@"
+CMD="java -cp "$JAR_FILE" sd2223.trab1.servers.rest.RestServer $@"
 
 echo "running: $@"
 docker run --rm -it --network "$NETWORK" $EXPOSED  "$IMAGE" $CMD
