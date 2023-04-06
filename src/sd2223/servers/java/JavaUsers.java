@@ -82,10 +82,14 @@ public class JavaUsers implements Users {
 	public Result<User> updateUser(String name, String pwd, User user) {
 		Log.info("updateUser: name=" + name + " ; pwd= " + pwd + " ; user=" + user) ;
 
-		if(/* name == null ||*/ pwd == null || user == null
-				/*|| user.getName() != null || user.getDomain() != null */) { // todo: ask professor
-			Log.info("Invalid username or password.");
+		if(  pwd == null || user == null || user.getName() == null || name == null  ) {
+			Log.info("Invalid request.");
 			return Result.error( ErrorCode.BAD_REQUEST );
+		}
+
+		if ( ! name.equals( user.getName() ) ){
+			Log.info("Invalid username");
+			return Result.error( ErrorCode.FORBIDDEN);
 		}
 
 		User oldUser;
@@ -108,7 +112,7 @@ public class JavaUsers implements Users {
         if( user.getPwd() == null ) user.setPwd( oldUser.getPwd() );
 
         user.setDomain(this.domain);
-        user.setName(name);
+        //user.setName(name);
 
 		synchronized (users){
 			users.put(name, user);
