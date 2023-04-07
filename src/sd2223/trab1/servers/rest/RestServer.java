@@ -15,7 +15,6 @@ import java.net.URI;
 import static sd2223.trab1.utils.Formatter.*;
 
 public class RestServer {
-    public static final int PORT = 8080;
 
     public static void main(String[] args) {
         if(args.length < 2){
@@ -36,7 +35,7 @@ public class RestServer {
 
             String serverID = getServiceID(domain, service);//String.format(SERVER_NAME_FORMAT, domain, service);
             String serverName = InetAddress.getLocalHost().getHostName();
-            URI serverURI = getRestURI(serverName, PORT); //URI.create(String.format(SERVER_URI_FMT, serverName, PORT));
+            URI serverURI = getRestURI(serverName, REST_PORT); //URI.create(String.format(SERVER_URI_FMT, serverName, PORT));
 
             Discovery ds = Discovery.getInstance();
             ds.announce(serverID, serverURI.toString());

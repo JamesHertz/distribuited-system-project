@@ -23,12 +23,12 @@ public class JavaFeeds implements Feeds {
 
     private final String domain;
     private final IDGenerator generator;
-    private final Map<String, Map<Long, Message>> messages;
+    private final Map<String, Map<Long, Message>> allFeeds;
 
     public JavaFeeds(String domain, long baseNumber){
         this.domain = domain;
         this.generator = new IDGenerator(baseNumber);
-        this.messages = new HashMap<>();
+        this.allFeeds = new HashMap<>();
     }
 
     @Override
@@ -51,17 +51,17 @@ public class JavaFeeds implements Feeds {
         // optmize later :)
         Result<Void> err;
         if(! ( err = usersServer.verifyPassword(address.username(), pwd) ).isOK() ){
-            System.out.println("User or password incorrect.");
+            System.out.println("Problems checking user.");
             return Result.error( err.error() );
         }
 
-        synchronized (messages){
-            var userMessages = messages.computeIfAbsent(user, k -> new HashMap<>());
+        synchronized (allFeeds){
+            var userFeed = allFeeds.computeIfAbsent(user, k -> new HashMap<>());
             long mid = generator.nextID();
             msg.setId(mid);
             msg.setDomain(domain);
             msg.setCreationTime(System.currentTimeMillis());
-            userMessages.put(mid, msg);
+            userFeed.put(mid, msg);
             return Result.ok(mid);
         }
     }
@@ -72,7 +72,7 @@ public class JavaFeeds implements Feeds {
 
         if( address == null || ! this.domain.equals(address.domain()) || pwd == null ){
             Log.info("Invalid user, domain or password.");
-           return Result.error( ErrorCode.BAD_REQUEST );
+            return Result.error( ErrorCode.BAD_REQUEST );
         }
 
         var usersServer = this.getDomainUserServer();
@@ -83,17 +83,17 @@ public class JavaFeeds implements Feeds {
 
         Result<Void> err;
         if( ! (err = usersServer.verifyPassword(address.username(), pwd ) ).isOK() ){
-            Log.info("Wrong username or password.");
+            Log.info("User doesn't exist or credentials are wrong..");
             return Result.error( err.error() );
         }
 
-        Map<Long, Message> userMsgs;
-        synchronized (messages){
-            userMsgs = messages.get(user);
+        Map<Long, Message> userFeed;
+        synchronized (allFeeds){
+            userFeed = allFeeds.get(user);
         }
 
-        synchronized (userMsgs){
-            if(userMsgs.remove(mid) == null){
+        synchronized (userFeed){
+            if(userFeed.remove(mid) == null){
                 Log.info("Message not found.");
                 return Result.error( ErrorCode.NOT_FOUND);
             }
@@ -105,16 +105,16 @@ public class JavaFeeds implements Feeds {
     @Override
     public Result<Message> getMessage(String user, long mid) {
 
-        Map<Long, Message> userMsgs;
+        Map<Long, Message> userFeed;
         Message res = null;
 
-        synchronized (messages){
-            userMsgs = messages.get(user);
+        synchronized (allFeeds){
+            userFeed = allFeeds.get(user);
         }
 
-        if(userMsgs != null){
-            synchronized (userMsgs){
-                res = userMsgs.get(mid);
+        if(userFeed != null){
+            synchronized (userFeed){
+                res = userFeed.get(mid);
             }
         }
 
@@ -128,20 +128,20 @@ public class JavaFeeds implements Feeds {
 
     @Override
     public Result<List<Message>> getMessages(String user, long time) {
-        Map<Long, Message> msgs;
+        Map<Long, Message> userFeed;
 
-        synchronized (messages) {
-            msgs = messages.get(user);
+        synchronized (allFeeds) {
+            userFeed = allFeeds.get(user);
         }
 
-        if(msgs == null){
+        if(userFeed == null){
              Log.info("Messages not found.");
              return Result.error( ErrorCode.NOT_FOUND );
         }
 
-        synchronized (msgs){
+        synchronized (userFeed){
             return Result.ok(
-                   msgs.values()
+                   userFeed.values()
                        .stream()
                        .filter( m -> m.getCreationTime() > time)
                        .toList()

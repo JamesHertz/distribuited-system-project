@@ -3,9 +3,6 @@ package sd2223.trab1.servers.soap;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.URI;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import jakarta.xml.ws.Endpoint;
 import sd2223.trab1.discovery.Discovery;
@@ -13,14 +10,10 @@ import sd2223.trab1.servers.java.JavaFeeds;
 import sd2223.trab1.servers.java.JavaUsers;
 import sd2223.trab1.servers.soap.services.SoapFeedsWebService;
 import sd2223.trab1.servers.soap.services.SoapUsersWebService;
-import sd2223.trab1.servers.soap.services.SoapWebService;
 
 import static sd2223.trab1.utils.Formatter.*;
 
 public class SoapServer {
-
-	public static final int PORT = 8081;
-
 
 //		System.setProperty("com.sun.xml.ws.transport.http.client.HttpTransportPipe.dump", "true");
 //		System.setProperty("com.sun.xml.internal.ws.transport.http.client.HttpTransportPipe.dump", "true");
@@ -47,7 +40,7 @@ public class SoapServer {
 
 			String serverID = getServiceID(domain, service);
 			String serverName = InetAddress.getLocalHost().getHostName();
-			String serverURI = getSoapURI(serverName, PORT).toString();
+			String serverURI = getSoapURI(serverName, SOAP_PORT).toString();
 
 			Discovery ds = Discovery.getInstance();
 			ds.announce(serverID, serverURI);
