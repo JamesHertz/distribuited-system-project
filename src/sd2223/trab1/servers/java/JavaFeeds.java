@@ -6,14 +6,17 @@ import sd2223.trab1.api.java.Result;
 import sd2223.trab1.api.java.Users;
 import sd2223.trab1.clients.UsersClientFactory;
 import sd2223.trab1.discovery.Discovery;
+import sd2223.trab1.servers.java.feedutils.Creator;
+import sd2223.trab1.servers.java.feedutils.Feed;
+import sd2223.trab1.servers.java.feedutils.FeedUser;
 import sd2223.trab1.utils.Formatter;
 import sd2223.trab1.utils.IDGenerator;
 
 import java.net.URI;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 import static sd2223.trab1.api.java.Result.ErrorCode;
 
@@ -25,6 +28,8 @@ public class JavaFeeds implements Feeds {
     private final String domain;
     private final IDGenerator generator;
     private final Map<String, Map<Long, Message>> localUserFeeds;
+    private final Map<String, FeedUser> feedUsers;
+    private final Map<String, Creator> creators;
     // private Map<String, Set<String>> subscriptions;
     // private Map<String, Map<Long, Message>> cache;
 
@@ -42,10 +47,19 @@ public class JavaFeeds implements Feeds {
             removeMessage();
             getAllMessages()
         }
+iago@fct
+james@di
+
+iago@fct -> subscribe( james@di )
+
+fct -> i_am_interested (di, james@di)
+
+di -> map[james].addSubscriptions( fct )
 
 
         FeedUser {
             Feed feeds;
+            Set<URI> subscriptions;
             Map<String, Feed> ..;
             getFeed();
             subscribe(String, Creator);
@@ -60,6 +74,8 @@ public class JavaFeeds implements Feeds {
         this.domain = domain;
         this.generator = new IDGenerator(baseNumber);
         this.localUserFeeds = new HashMap<>();
+        this.feedUsers = new HashMap<>();
+        this.creators  = new HashMap<>();
     }
 
     @Override
@@ -86,15 +102,29 @@ public class JavaFeeds implements Feeds {
             return Result.error( err.error() );
         }
 
-        synchronized (localUserFeeds){
-            var userFeed = localUserFeeds.computeIfAbsent(user, k -> new HashMap<>());
+        FeedUser aux;
+        synchronized (feedUsers){
+            aux = feedUsers.computeIfAbsent(user, k -> new FeedUser());
+        }
+
+        synchronized (aux){
+            Feed feeds = aux.getPersonalFeed();
             long mid = generator.nextID();
             msg.setId(mid);
             msg.setDomain(domain);
             msg.setCreationTime(System.currentTimeMillis());
-            userFeed.put(mid, msg);
+            feeds.addMessage(mid, msg);
             return Result.ok(mid);
         }
+
+        //synchronized (localUserFeeds){
+        //    var userFeed = localUserFeeds.computeIfAbsent(user, k -> new HashMap<>());
+        //    long mid = generator.nextID();
+        //    msg.setId(mid);
+        //    msg.setDomain(domain);
+        //    msg.setCreationTime(System.currentTimeMillis());
+        //    userFeed.put(mid, msg);
+        //}
     }
 
     @Override
@@ -118,36 +148,73 @@ public class JavaFeeds implements Feeds {
             return Result.error( err.error() );
         }
 
-        Map<Long, Message> userFeed;
-        synchronized (localUserFeeds){
-            userFeed = localUserFeeds.get(user);
-        }
+        FeedUser aux = this.getUserInfo(user);
 
-        synchronized (userFeed){
-            if(userFeed.remove(mid) == null){
-                Log.info("Message not found.");
-                return Result.error( ErrorCode.NOT_FOUND);
+        if( aux != null ){
+            synchronized (aux){
+                var feeds = aux.getPersonalFeed();
+                if(feeds.removeMessage(mid))
+                    return Result.error(ErrorCode.NO_CONTENT);
             }
         }
 
-        return Result.error(ErrorCode.NO_CONTENT);
+        Log.info("Message not found.");
+        return Result.error( ErrorCode.NOT_FOUND);
+        //synchronized (aux){
+        //    if(aux == null || ! aux.getPersonalFeed().removeMessage(mid) ){
+        //        Log.info("Message not found.");
+        //        return Result.error( ErrorCode.NOT_FOUND);
+        //    }
+        //}
+        //
+        //Map<Long, Message> userFeed;
+        //synchronized (localUserFeeds){
+        //    userFeed = localUserFeeds.get(user);
+        //}
+
+        //synchronized (userFeed){
+        //    if(userFeed.remove(mid) == null){
+        //        Log.info("Message not found.");
+        //        return Result.error( ErrorCode.NOT_FOUND);
+        //    }
+        //}
+
+        //return Result.error(ErrorCode.NO_CONTENT);
     }
 
     @Override
     public Result<Message> getMessage(String user, long mid) {
 
-        Map<Long, Message> userFeed;
+        FeedUser info = this.getUserInfo(user);
         Message res = null;
 
-        synchronized (localUserFeeds){
-            userFeed = localUserFeeds.get(user);
-        }
-
-        if(userFeed != null){
-            synchronized (userFeed){
-                res = userFeed.get(mid);
+        if( info != null ){
+            synchronized (info){
+                var feeds  = info.getPersonalFeed();
+                if( (res = feeds.getMessage(mid)) == null ) {
+                    Iterator<String> subs = info.getAllSubscriptions().iterator();
+                    while(subs.hasNext() && res == null){
+                        var creator = this.getCreator(subs.next());
+                        synchronized (creator){
+                           res = creator.getFeed().getMessage(mid);
+                        }
+                    }
+                }
             }
         }
+
+        //Map<Long, Message> userFeed;
+        //Message res = null;
+
+        //synchronized (localUserFeeds){
+        //    userFeed = localUserFeeds.get(user);
+        //}
+
+        //if(userFeed != null){
+        //    synchronized (userFeed){
+        //        res = userFeed.get(mid);
+        //    }
+        //}
 
         if(res == null){
             Log.info("Message doesn't exit.");
@@ -200,5 +267,16 @@ public class JavaFeeds implements Feeds {
         URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE), 1);
         if(serverURIs.length == 0) return null;
         return UsersClientFactory.get(serverURIs[0]);
+    }
+
+    private FeedUser getUserInfo(String user){
+        synchronized (feedUsers){
+           return feedUsers.get(user);
+        }
+    }
+    public Creator getCreator(String userAddress){
+        synchronized (creators){
+            return creators.get(userAddress);
+        }
     }
 }

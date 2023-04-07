@@ -13,7 +13,7 @@ public class IDGenerator {
         this.seqNumber  = new Random().nextLong(0, 10000);
     }
 
-    public long nextID(){
+    public synchronized long nextID(){
         return ++seqNumber * MAGIC_NUMBER + baseNumber;
     }
 }
