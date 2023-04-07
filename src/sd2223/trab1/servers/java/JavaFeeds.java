@@ -6,17 +6,11 @@ import sd2223.trab1.api.java.Result;
 import sd2223.trab1.api.java.Users;
 import sd2223.trab1.clients.UsersClientFactory;
 import sd2223.trab1.discovery.Discovery;
-import sd2223.trab1.servers.java.feedutils.Creator;
-import sd2223.trab1.servers.java.feedutils.Feed;
-import sd2223.trab1.servers.java.feedutils.FeedUser;
 import sd2223.trab1.utils.Formatter;
 import sd2223.trab1.utils.IDGenerator;
 
 import java.net.URI;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Logger;
 import static sd2223.trab1.api.java.Result.ErrorCode;
 
@@ -27,55 +21,15 @@ public class JavaFeeds implements Feeds {
 
     private final String domain;
     private final IDGenerator generator;
-    private final Map<String, Map<Long, Message>> localUserFeeds;
-    private final Map<String, FeedUser> feedUsers;
-    private final Map<String, Creator> creators;
-    // private Map<String, Set<String>> subscriptions;
-    // private Map<String, Map<Long, Message>> cache;
+    private final Map<String, UserFeed> localFeeds;
+    private final Map<String, ForeignFeed> foreignFeeds;
+    // private final Set<String> subsServer;
 
-    //  creators      -> (creator -> all messages)
-    //  subscriptions -> (user -> creator[])
-    //  FeedUser -> Feeds
-    /*
-
-        Map<S, Feed> creators;
-        Map<S, FeeUser> users;
-
-        Feed {
-            getMessage()
-            addMessage()
-            removeMessage();
-            getAllMessages()
-        }
-iago@fct
-james@di
-
-iago@fct -> subscribe( james@di )
-
-fct -> i_am_interested (di, james@di)
-
-di -> map[james].addSubscriptions( fct )
-
-
-        FeedUser {
-            Feed feeds;
-            Set<URI> subscriptions;
-            Map<String, Feed> ..;
-            getFeed();
-            subscribe(String, Creator);
-            unsubscribe(String);
-            Creator getSubscription(String);
-        }
-
-        FeedUsers {
-        }
-     */
     public JavaFeeds(String domain, long baseNumber){
         this.domain = domain;
         this.generator = new IDGenerator(baseNumber);
-        this.localUserFeeds = new HashMap<>();
-        this.feedUsers = new HashMap<>();
-        this.creators  = new HashMap<>();
+        this.localFeeds    = new HashMap<>();
+        this.foreignFeeds  = new HashMap<>();
     }
 
     @Override
@@ -102,29 +56,20 @@ di -> map[james].addSubscriptions( fct )
             return Result.error( err.error() );
         }
 
-        FeedUser aux;
-        synchronized (feedUsers){
-            aux = feedUsers.computeIfAbsent(user, k -> new FeedUser());
+        UserFeed feed;
+        synchronized (localFeeds){
+            feed = localFeeds.computeIfAbsent(user, k -> new UserFeed());
         }
 
-        synchronized (aux){
-            Feed feeds = aux.getPersonalFeed();
+        var messages = feed.userMessages();
+        synchronized (messages){
             long mid = generator.nextID();
             msg.setId(mid);
             msg.setDomain(domain);
             msg.setCreationTime(System.currentTimeMillis());
-            feeds.addMessage(mid, msg);
+            messages.put(mid, msg);
             return Result.ok(mid);
         }
-
-        //synchronized (localUserFeeds){
-        //    var userFeed = localUserFeeds.computeIfAbsent(user, k -> new HashMap<>());
-        //    long mid = generator.nextID();
-        //    msg.setId(mid);
-        //    msg.setDomain(domain);
-        //    msg.setCreationTime(System.currentTimeMillis());
-        //    userFeed.put(mid, msg);
-        //}
     }
 
     @Override
@@ -148,73 +93,43 @@ di -> map[james].addSubscriptions( fct )
             return Result.error( err.error() );
         }
 
-        FeedUser aux = this.getUserInfo(user);
-
-        if( aux != null ){
-            synchronized (aux){
-                var feeds = aux.getPersonalFeed();
-                if(feeds.removeMessage(mid))
+        var feed = this.getUserFeed(user);
+        if( feed != null ){
+            var messages = feed.userMessages();
+            synchronized ( messages ){
+                if(messages.remove(mid) != null)
                     return Result.error(ErrorCode.NO_CONTENT);
             }
         }
 
         Log.info("Message not found.");
         return Result.error( ErrorCode.NOT_FOUND);
-        //synchronized (aux){
-        //    if(aux == null || ! aux.getPersonalFeed().removeMessage(mid) ){
-        //        Log.info("Message not found.");
-        //        return Result.error( ErrorCode.NOT_FOUND);
-        //    }
-        //}
-        //
-        //Map<Long, Message> userFeed;
-        //synchronized (localUserFeeds){
-        //    userFeed = localUserFeeds.get(user);
-        //}
-
-        //synchronized (userFeed){
-        //    if(userFeed.remove(mid) == null){
-        //        Log.info("Message not found.");
-        //        return Result.error( ErrorCode.NOT_FOUND);
-        //    }
-        //}
-
-        //return Result.error(ErrorCode.NO_CONTENT);
     }
 
     @Override
     public Result<Message> getMessage(String user, long mid) {
 
-        FeedUser info = this.getUserInfo(user);
+        var feed = this.getUserFeed(user);
         Message res = null;
+        if(feed != null) {
+           var messages = feed.userMessages();
+           synchronized (messages){
+                res = messages.get(mid);
+           }
 
-        if( info != null ){
-            synchronized (info){
-                var feeds  = info.getPersonalFeed();
-                if( (res = feeds.getMessage(mid)) == null ) {
-                    Iterator<String> subs = info.getAllSubscriptions().iterator();
-                    while(subs.hasNext() && res == null){
-                        var creator = this.getCreator(subs.next());
-                        synchronized (creator){
-                           res = creator.getFeed().getMessage(mid);
-                        }
+           if(res == null){
+              var subs = feed.subscriptions();
+              synchronized (subs){
+                 for(var sub : subs){
+                    var subMsgs = this.getForeignFeed(sub);
+                    synchronized (subMsgs){
+                       res = subMsgs.getUserMessages().get(mid);
                     }
-                }
-            }
+                    if(res != null) break;
+                 }
+              }
+           }
         }
-
-        //Map<Long, Message> userFeed;
-        //Message res = null;
-
-        //synchronized (localUserFeeds){
-        //    userFeed = localUserFeeds.get(user);
-        //}
-
-        //if(userFeed != null){
-        //    synchronized (userFeed){
-        //        res = userFeed.get(mid);
-        //    }
-        //}
 
         if(res == null){
             Log.info("Message doesn't exit.");
@@ -226,30 +141,83 @@ di -> map[james].addSubscriptions( fct )
 
     @Override
     public Result<List<Message>> getMessages(String user, long time) {
-        Map<Long, Message> userFeed;
+        var feed = this.getUserFeed(user);
 
-        synchronized (localUserFeeds) {
-            userFeed = localUserFeeds.get(user);
-        }
-
-        if(userFeed == null){
+        if(feed == null){
              Log.info("Messages not found.");
              return Result.error( ErrorCode.NOT_FOUND );
         }
 
-        synchronized (userFeed){
-            return Result.ok(
-                   userFeed.values()
-                       .stream()
-                       .filter( m -> m.getCreationTime() > time)
-                       .toList()
-            );
+        List<Message> res = new LinkedList<>();
+        var messages =  feed.userMessages();
+        synchronized (messages){
+            messages.values()
+                    .forEach( m -> {
+                        if(m.getCreationTime() > time) res.add(m);
+                    });
         }
+
+        var subs = feed.subscriptions();
+        synchronized (subs){
+            subs.forEach(sub -> {
+                var subMsg = this.getForeignFeed(sub);
+                synchronized (subMsg){
+                    subMsg.getUserMessages()
+                            .values()
+                            .forEach(m -> { // todo think about subscriptions concerns :)
+                                if(m.getCreationTime() > time) res.add(m);
+                            });
+                }
+            });
+        }
+
+        return Result.ok(res);
     }
 
     @Override
     public Result<Void> subscribeUser(String user, String userSub, String pwd) {
-        return Result.error(Result.ErrorCode.NOT_IMPLEMENTED );
+        Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
+        var localUserAddress = Formatter.getUserAddress(user);
+        var subUserAddress   = Formatter.getUserAddress(userSub);
+
+        if( localUserAddress == null || subUserAddress == null
+            || ! this.domain.equals(localUserAddress.domain()) || pwd == null ){
+            Log.info("Bad address, domain or pwd.");
+            return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        var userServer = this.getDomainUserServer();
+        if( userServer == null ){
+            Log.info("Problems getting to user server.");
+            return Result.error( ErrorCode.TIMEOUT );
+        }
+
+        Result<Void> err;
+        if( ! (err = userServer.verifyPassword(localUserAddress.username(), pwd) ).isOK() ) {
+            Log.info("User doesn't exist or pwd is wrong.");
+            return Result.error( err.error() );
+        }
+
+        // TODO: check that the user exists :)
+        ForeignFeed foreign;
+        synchronized (foreignFeeds){
+            foreign = foreignFeeds.computeIfAbsent(userSub, k -> new ForeignFeed()); // TODO: what if the user is local?
+        }
+        synchronized (foreign){
+            foreign.incSubs();
+        }
+
+        UserFeed feed;
+        synchronized (localFeeds){
+            feed = localFeeds.computeIfAbsent(user, k -> new UserFeed());
+        }
+        var subs = feed.subscriptions();
+        synchronized (subs){
+            subs.add(userSub);
+        }
+
+        // TODO: subscribe to other server
+        return Result.error(ErrorCode.NO_CONTENT);
     }
 
     @Override
@@ -269,14 +237,48 @@ di -> map[james].addSubscriptions( fct )
         return UsersClientFactory.get(serverURIs[0]);
     }
 
-    private FeedUser getUserInfo(String user){
-        synchronized (feedUsers){
-           return feedUsers.get(user);
+    private UserFeed getUserFeed(String user){
+        synchronized (localFeeds){
+           return localFeeds.get(user);
         }
     }
-    public Creator getCreator(String userAddress){
-        synchronized (creators){
-            return creators.get(userAddress);
+
+    private ForeignFeed getForeignFeed(String user){
+        synchronized (foreignFeeds){
+            return foreignFeeds.get(user);
         }
     }
+
+    private record UserFeed (
+            Map<Long, Message> userMessages,
+            Set<String> subscriptions,
+            Set<String> subscribers){
+        public UserFeed(){
+            this(new HashMap<>(), new HashSet<>(), new HashSet<>());
+        }
+    };
+
+    static class ForeignFeed{
+        private final Map<Long, Message> userMessages;
+        private int counter;
+        public ForeignFeed(){
+            this.userMessages = new HashMap<>();
+            this.counter = 0;
+        }
+
+        public void incSubs(){
+            this.counter++;
+        }
+        public void decSubs(){
+            this.counter--;
+        }
+
+        public boolean isOver(){
+            return this.counter == 0;  // I am so sad :)
+        }
+        public Map<Long, Message> getUserMessages(){
+            return userMessages;
+        }
+    }
+
 }

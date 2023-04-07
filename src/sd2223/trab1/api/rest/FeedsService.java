@@ -81,8 +81,6 @@ public interface FeedsService {
 	@Produces(MediaType.APPLICATION_JSON)
 	List<Message> getMessages(@PathParam(USER) String user, @QueryParam(TIME) long time);
 
-
-
 	/**
 	 * Subscribe a user.
 	 * A user must contact the server of her domain directly (i.e., this operation should not be
