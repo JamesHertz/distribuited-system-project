@@ -13,6 +13,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 import static sd2223.trab1.api.java.Result.ErrorCode;
 
@@ -23,12 +24,42 @@ public class JavaFeeds implements Feeds {
 
     private final String domain;
     private final IDGenerator generator;
-    private final Map<String, Map<Long, Message>> allFeeds;
+    private final Map<String, Map<Long, Message>> localUserFeeds;
+    // private Map<String, Set<String>> subscriptions;
+    // private Map<String, Map<Long, Message>> cache;
 
+    //  creators      -> (creator -> all messages)
+    //  subscriptions -> (user -> creator[])
+    //  FeedUser -> Feeds
+    /*
+
+        Map<S, Feed> creators;
+        Map<S, FeeUser> users;
+
+        Feed {
+            getMessage()
+            addMessage()
+            removeMessage();
+            getAllMessages()
+        }
+
+
+        FeedUser {
+            Feed feeds;
+            Map<String, Feed> ..;
+            getFeed();
+            subscribe(String, Creator);
+            unsubscribe(String);
+            Creator getSubscription(String);
+        }
+
+        FeedUsers {
+        }
+     */
     public JavaFeeds(String domain, long baseNumber){
         this.domain = domain;
         this.generator = new IDGenerator(baseNumber);
-        this.allFeeds = new HashMap<>();
+        this.localUserFeeds = new HashMap<>();
     }
 
     @Override
@@ -55,8 +86,8 @@ public class JavaFeeds implements Feeds {
             return Result.error( err.error() );
         }
 
-        synchronized (allFeeds){
-            var userFeed = allFeeds.computeIfAbsent(user, k -> new HashMap<>());
+        synchronized (localUserFeeds){
+            var userFeed = localUserFeeds.computeIfAbsent(user, k -> new HashMap<>());
             long mid = generator.nextID();
             msg.setId(mid);
             msg.setDomain(domain);
@@ -88,8 +119,8 @@ public class JavaFeeds implements Feeds {
         }
 
         Map<Long, Message> userFeed;
-        synchronized (allFeeds){
-            userFeed = allFeeds.get(user);
+        synchronized (localUserFeeds){
+            userFeed = localUserFeeds.get(user);
         }
 
         synchronized (userFeed){
@@ -108,8 +139,8 @@ public class JavaFeeds implements Feeds {
         Map<Long, Message> userFeed;
         Message res = null;
 
-        synchronized (allFeeds){
-            userFeed = allFeeds.get(user);
+        synchronized (localUserFeeds){
+            userFeed = localUserFeeds.get(user);
         }
 
         if(userFeed != null){
@@ -130,8 +161,8 @@ public class JavaFeeds implements Feeds {
     public Result<List<Message>> getMessages(String user, long time) {
         Map<Long, Message> userFeed;
 
-        synchronized (allFeeds) {
-            userFeed = allFeeds.get(user);
+        synchronized (localUserFeeds) {
+            userFeed = localUserFeeds.get(user);
         }
 
         if(userFeed == null){
