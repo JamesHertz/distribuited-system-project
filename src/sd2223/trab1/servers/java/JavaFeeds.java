@@ -164,34 +164,59 @@ public class JavaFeeds implements Feeds {
 
     @Override
     public Result<Void> subscribeUser(String user, String userSub, String pwd) {
-        /*
         Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
         var localUserAddress = Formatter.getUserAddress(user);
         var subUserAddress   = Formatter.getUserAddress(userSub);
-
-        if(     localUserAddress == null //Bad local address given
-                || subUserAddress == null //Bad sub address given
-                || ! this.domain.equals(localUserAddress.domain()) //User trying to subscribe is not from here
-                || pwd == null //No pwd given for some reason
-        ){
+        if( localUserAddress == null || subUserAddress == null
+              || ! this.domain.equals(localUserAddress.domain()) || pwd == null ){
             Log.info("Bad address, domain or pwd.");
             return Result.error( ErrorCode.BAD_REQUEST );
         }
 
-        var userServer = this.getDomainUserServer();
-        if( userServer == null ){
+        var myUserServer = this.getDomainUserServer();
+        if( myUserServer == null ){
             Log.info("Problems getting to user server.");
             return Result.error( ErrorCode.TIMEOUT );
         }
 
         Result<Void> err;
-        if( ! (err = userServer.verifyPassword(localUserAddress.username(), pwd) ).isOK() ) {
+        if( ! (err = myUserServer.verifyPassword(localUserAddress.username(), pwd) ).isOK() ) {
             Log.info("User doesn't exist or pwd is wrong.");
             return Result.error( err.error() );
         }
 
+        // talk with the feeds server and subscribe to it :)
+        // if everything went well.
 
-         */
+        RemoteUser remote = null;
+        if(! domain.equals(subUserAddress.domain()) ) {
+             synchronized (allUserInfo){
+                remote = (RemoteUser) allUserInfo.computeIfAbsent(user, k -> new RemoteUser());
+            }
+        }
+
+        LocalUser local;
+        synchronized (allUserInfo){
+            local = (LocalUser) allUserInfo.computeIfAbsent(user, k -> new LocalUser());
+        }
+
+        synchronized (local){
+            var subs = local.getSubscriptions();
+            if( subs.add(userSub) && remote != null)
+                remote.incSubscriptions();
+            // feeds@fct
+            // james@fct
+            // iago@fct
+            // inscreve( iago@fct, james@fct )
+            // inscreve( iago@fct, james@di )
+            // remove( james@fct )
+            // remove( james@di )
+            // removeMsg( james@di , 100)
+            // removeMsg( james@fct, 90 )
+            // getMessages()
+        }
+
+        return Result.error( ErrorCode.NO_CONTENT );
         // TODO: check that the user exists :)
         /* Iago stuff
                             one way to do it
@@ -248,8 +273,6 @@ public class JavaFeeds implements Feeds {
           // Wait response? deadlock? uga buga?
         */
         // Wait... did james wanted something like (Map<String, String (the serverDomain) > serversThatThisUserSubscribedTo.putIfAbsent(thisUser, subDomain) ??)
-
-        return null;
     }
 
     private LocalUser getLocalUser(String userAddress) {
@@ -342,19 +365,19 @@ public class JavaFeeds implements Feeds {
         }
     }
 
-    private class ForeignUser {
+    private class RemoteUser extends FeedUser {
         private int counter;
 
-        public ForeignUser() {
+        public RemoteUser() {
             super();
             this.counter = 0;
         }
 
-        public void incSubs() {
+        public void incSubscriptions() {
             this.counter++;
         }
 
-        public void decSubs() {
+        public void decSubscriptions() {
             this.counter--;
         }
 
