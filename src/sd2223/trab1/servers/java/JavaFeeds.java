@@ -11,7 +11,10 @@ import sd2223.trab1.utils.IDGenerator;
 
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
+
 import static sd2223.trab1.api.java.Result.ErrorCode;
 
 // next test 3b :)
@@ -21,15 +24,12 @@ public class JavaFeeds implements Feeds {
 
     private final String domain;
     private final IDGenerator generator;
-    private final Map<String, UserFeed> localFeeds;
-    private final Map<String, ForeignFeed> foreignFeeds;
-    // private final Set<String> subsServer;
+    private final Map<String, FeedUser> allUserInfo;
 
-    public JavaFeeds(String domain, long baseNumber){
+    public JavaFeeds(String domain, long baseNumber) {
         this.domain = domain;
         this.generator = new IDGenerator(baseNumber);
-        this.localFeeds    = new HashMap<>();
-        this.foreignFeeds  = new HashMap<>();
+        this.allUserInfo = new HashMap<>();
     }
 
     @Override
@@ -37,145 +37,134 @@ public class JavaFeeds implements Feeds {
         Log.info("PostMessage: user=" + user + " ; pwd=" + pwd + " ; msg=" + msg);
         var address = Formatter.getUserAddress(user);
 
-        if( address == null || ! this.domain.equals(address.domain())
-               || pwd == null || msg.getDomain() == null || msg.getUser() == null  ){
+        if (address == null || !this.domain.equals(address.domain())
+                || pwd == null || msg.getDomain() == null || msg.getUser() == null) {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
         Users usersServer = getDomainUserServer();
 
-        if(usersServer == null ){
+        if (usersServer == null) {
             System.out.println("Unable to contact the user server.");
-            return Result.error( ErrorCode.TIMEOUT );
+            return Result.error(ErrorCode.TIMEOUT);
         }
 
         // optmize later :)
         Result<Void> err;
-        if(! ( err = usersServer.verifyPassword(address.username(), pwd) ).isOK() ){
+        if (!(err = usersServer.verifyPassword(address.username(), pwd)).isOK()) {
             System.out.println("Problems checking user.");
-            return Result.error( err.error() );
+            return Result.error(err.error());
         }
 
-        UserFeed feed;
-        synchronized (localFeeds){
-            feed = localFeeds.computeIfAbsent(user, k -> new UserFeed());
+        LocalUser userInfo;
+        synchronized (allUserInfo) {
+            userInfo = (LocalUser) allUserInfo.computeIfAbsent(user, k -> new LocalUser());
         }
 
-        var messages = feed.userMessages();
-        synchronized (messages){
-            long mid = generator.nextID();
-            msg.setId(mid);
-            msg.setDomain(domain);
-            msg.setCreationTime(System.currentTimeMillis());
-            messages.put(mid, msg);
-            return Result.ok(mid);
-        }
+        var messages = userInfo.getUserMessages();
+        long mid = generator.nextID();
+        msg.setId(mid);
+        msg.setDomain(domain);
+        msg.setCreationTime(System.currentTimeMillis());
+        messages.put(mid, msg);
+
+        // TODO: send the message to all subscribers
+        return Result.ok(mid);
     }
 
     @Override
     public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
         var address = Formatter.getUserAddress(user);
 
-        if( address == null || ! this.domain.equals(address.domain()) || pwd == null ){
+        if (address == null || !this.domain.equals(address.domain()) || pwd == null) {
             Log.info("Invalid user, domain or password.");
-            return Result.error( ErrorCode.BAD_REQUEST );
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
 
         var usersServer = this.getDomainUserServer();
-        if(usersServer == null){
+        if (usersServer == null) {
             Log.info("Unable to connect user server.");
-            return Result.error( ErrorCode.TIMEOUT );
+            return Result.error(ErrorCode.TIMEOUT);
         }
 
         Result<Void> err;
-        if( ! (err = usersServer.verifyPassword(address.username(), pwd ) ).isOK() ){
+        if (!(err = usersServer.verifyPassword(address.username(), pwd)).isOK()) {
             Log.info("User doesn't exist or credentials are wrong..");
-            return Result.error( err.error() );
+            return Result.error(err.error());
         }
 
-        var feed = this.getUserFeed(user);
-        if( feed != null ){
-            var messages = feed.userMessages();
-            synchronized ( messages ){
-                if(messages.remove(mid) != null)
-                    return Result.error(ErrorCode.NO_CONTENT);
-            }
+        FeedUser userInfo;
+        synchronized (allUserInfo) {
+            userInfo = allUserInfo.get(user);
+        }
+
+        if (userInfo != null) {
+            var messages = userInfo.getUserMessages();
+            if (messages.remove(mid) != null)
+                return Result.error(ErrorCode.NO_CONTENT);
         }
 
         Log.info("Message not found.");
-        return Result.error( ErrorCode.NOT_FOUND);
+        return Result.error(ErrorCode.NOT_FOUND);
     }
 
     @Override
     public Result<Message> getMessage(String user, long mid) {
+        Log.info(String.format("getMessages: user=%s ; mid=%d", user, mid));
 
-        var feed = this.getUserFeed(user);
-        Message res = null;
-        if(feed != null) {
-           var messages = feed.userMessages();
-           synchronized (messages){
-                res = messages.get(mid);
-           }
+        synchronized (allUserInfo) {
 
-           if(res == null){
-              var subs = feed.subscriptions();
-              synchronized (subs){
-                 for(var sub : subs){
-                    var subMsgs = this.getForeignFeed(sub);
-                    synchronized (subMsgs){
-                       res = subMsgs.getUserMessages().get(mid);
-                    }
-                    if(res != null) break;
-                 }
-              }
-           }
+            var userInfo = getLocalUser(user);
+            if (userInfo == null) {
+                Log.info("Messages not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+
+            Optional<Message> res;
+            synchronized (userInfo) {
+                res = userInfo.getAllFeedMessages()
+                        .map(msgs -> msgs.get(mid))
+                        .filter(Objects::nonNull)
+                        .findFirst();
+            }
+
+            if (res.isEmpty()) {
+                Log.info("User exists but the message is not here.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+
+            return Result.ok(res.get());
         }
-
-        if(res == null){
-            Log.info("Message doesn't exit.");
-            return Result.error( ErrorCode.NOT_FOUND );
-        }
-
-        return Result.ok(res);
     }
 
     @Override
     public Result<List<Message>> getMessages(String user, long time) {
-        var feed = this.getUserFeed(user);
+        Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
 
-        if(feed == null){
-             Log.info("Messages not found.");
-             return Result.error( ErrorCode.NOT_FOUND );
+        synchronized (allUserInfo) {
+
+            var userInfo = getLocalUser(user);
+
+            if (userInfo == null) {
+                Log.info("Messages not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+
+            synchronized (userInfo) {
+                return Result.ok(
+                        userInfo.getAllFeedMessages().map(m -> m.values().stream())
+                                .reduce(Stream.empty(), Stream::concat)
+                                .filter(m -> m.getCreationTime() > time)
+                                .toList()
+                );
+            }
+
         }
-
-        List<Message> res = new LinkedList<>();
-        var messages =  feed.userMessages();
-        synchronized (messages){
-            messages.values()
-                    .forEach( m -> {
-                        if(m.getCreationTime() > time) res.add(m);
-                    });
-        }
-
-        var subs = feed.subscriptions();
-        synchronized (subs){
-            subs.forEach(sub -> {
-                var subMsg = this.getForeignFeed(sub);
-                synchronized (subMsg){
-                    subMsg.getUserMessages()
-                            .values()
-                            .forEach(m -> { // todo think about subscriptions concerns :)
-                                if(m.getCreationTime() > time) res.add(m);
-                            });
-                }
-            });
-        }
-
-        return Result.ok(res);
     }
 
     @Override
     public Result<Void> subscribeUser(String user, String userSub, String pwd) {
+        /*
         Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
         var localUserAddress = Formatter.getUserAddress(user);
         var subUserAddress   = Formatter.getUserAddress(userSub);
@@ -201,6 +190,8 @@ public class JavaFeeds implements Feeds {
             return Result.error( err.error() );
         }
 
+
+         */
         // TODO: check that the user exists :)
         /* Iago stuff
                             one way to do it
@@ -217,10 +208,15 @@ public class JavaFeeds implements Feeds {
           // Wait response? deadlock? don't we need his password to verify if he exists or shall we also use searchUsers there? uga buga?
         */
         /*
+        Feeds feedsService = this.getFeedService( subUserAddress.domain() )
+        private Resul<Feeds> getFeedService( String domain ) {
+            if( domain.equals(this.domain) )
+                return this;
+            return FeedsClientFactor.newFeedsService( domain );
+        }
                 Before the code on top of this
             if subUserAddress.domain() == this.domain()
                 //check locally if user exists...
-         */
         ForeignFeed foreign;
         synchronized (foreignFeeds){
             foreign = foreignFeeds.computeIfAbsent(userSub, k -> new ForeignFeed()); // TODO: what if the user is local?
@@ -239,7 +235,7 @@ public class JavaFeeds implements Feeds {
         }
 
         // TODO: subscribe to other server
-        /* Iago stuff
+        Iago stuff
                             one way to do it
          (still with var userSubServer)
          //Now makes it difficult to subscribe since that we do on the feeds Server...
@@ -253,67 +249,117 @@ public class JavaFeeds implements Feeds {
         */
         // Wait... did james wanted something like (Map<String, String (the serverDomain) > serversThatThisUserSubscribedTo.putIfAbsent(thisUser, subDomain) ??)
 
-        return Result.error(ErrorCode.NO_CONTENT);
+        return null;
+    }
+
+    private LocalUser getLocalUser(String userAddress) {
+        return (LocalUser) allUserInfo.get(userAddress);
+        // var user = allUserInfo.get(userAddress);
+        // return user instanceof LocalUser ? (LocalUser) user : null;
     }
 
     @Override
     public Result<Void> unSubscribeUser(String user, String userSub, String pwd) {
-        return Result.error(Result.ErrorCode.NOT_IMPLEMENTED );
+        return Result.error(Result.ErrorCode.NOT_IMPLEMENTED);
     }
 
     @Override
     public Result<List<String>> listSubs(String user) {
-        return Result.error(Result.ErrorCode.NOT_IMPLEMENTED );
+        Log.info("listSubs: user=" + user);
+        var address = Formatter.getUserAddress(user);
+
+        if( address == null || !this.domain.equals(address.domain()) ) {
+            Log.info("Bad request");
+            return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        LocalUser userInfo;
+        synchronized (allUserInfo){
+            userInfo = getLocalUser(user);
+        }
+
+        if( userInfo == null ){
+            Log.info("User doesn't exist.");
+            return Result.error( ErrorCode.NOT_FOUND );
+        }
+
+        synchronized (userInfo){
+            return Result.ok(
+                    userInfo.getSubscribers()
+                            .stream()
+                            .toList()
+            );
+        }
+
+
     }
 
-    private Users getDomainUserServer(){
+    private Users getDomainUserServer() {
         var ds = Discovery.getInstance();
         URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE), 1);
-        if(serverURIs.length == 0) return null;
+        if (serverURIs.length == 0) return null;
         return UsersClientFactory.get(serverURIs[0]);
     }
 
-    private UserFeed getUserFeed(String user){
-        synchronized (localFeeds){
-           return localFeeds.get(user);
-        }
-    }
 
-    private ForeignFeed getForeignFeed(String user){
-        synchronized (foreignFeeds){
-            return foreignFeeds.get(user);
-        }
-    }
-
-    private record UserFeed (
-            Map<Long, Message> userMessages,
-            Set<String> subscriptions,
-            Set<String> subscribers){
-        public UserFeed(){
-            this(new HashMap<>(), new HashSet<>(), new HashSet<>());
-        }
-    };
-
-    static class ForeignFeed{
+    private class FeedUser {
         private final Map<Long, Message> userMessages;
+
+        public FeedUser() {
+            this.userMessages = new ConcurrentHashMap<>(); // do we really need this:
+            // this.userMessages = new HashMap<>();
+        }
+
+        public Map<Long, Message> getUserMessages() {
+            return userMessages;
+        }
+    }
+
+    private class LocalUser extends FeedUser {
+        private Set<String> subscriptions;
+        private Set<String> subscribers;
+
+        public LocalUser() {
+            super();
+            subscribers = new HashSet<>();
+            subscriptions = new HashSet<>();
+        }
+
+        public Set<String> getSubscriptions() {
+            return subscriptions;
+        }
+
+        public Set<String> getSubscribers() {
+            return subscribers;
+        }
+
+        public Stream<Map<Long, Message>> getAllFeedMessages() {
+            return Stream.concat(
+                    Stream.of(this.getUserMessages()),
+                    // is there a problem over here??
+                    subscriptions.stream().map(sub -> allUserInfo.get(sub).getUserMessages())
+            );
+        }
+    }
+
+    private class ForeignUser {
         private int counter;
-        public ForeignFeed(){
-            this.userMessages = new HashMap<>();
+
+        public ForeignUser() {
+            super();
             this.counter = 0;
         }
 
-        public void incSubs(){
+        public void incSubs() {
             this.counter++;
         }
-        public void decSubs(){
+
+        public void decSubs() {
             this.counter--;
         }
 
-        public boolean isOver(){
+        public boolean isOver() {
             return this.counter == 0;  // I am so sad :)
-        }
-        public Map<Long, Message> getUserMessages(){
-            return userMessages;
         }
     }
 
