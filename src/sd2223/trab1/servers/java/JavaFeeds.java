@@ -180,8 +180,11 @@ public class JavaFeeds implements Feeds {
         var localUserAddress = Formatter.getUserAddress(user);
         var subUserAddress   = Formatter.getUserAddress(userSub);
 
-        if( localUserAddress == null || subUserAddress == null
-            || ! this.domain.equals(localUserAddress.domain()) || pwd == null ){
+        if(     localUserAddress == null //Bad local address given
+                || subUserAddress == null //Bad sub address given
+                || ! this.domain.equals(localUserAddress.domain()) //User trying to subscribe is not from here
+                || pwd == null //No pwd given for some reason
+        ){
             Log.info("Bad address, domain or pwd.");
             return Result.error( ErrorCode.BAD_REQUEST );
         }
@@ -199,6 +202,25 @@ public class JavaFeeds implements Feeds {
         }
 
         // TODO: check that the user exists :)
+        /* Iago stuff
+                            one way to do it
+         var userSubServer = this.getDomainUserServer(subUserAddress.domain());
+         List usersMatched = userSubServer.searchUSer(subUserAddress.username());
+         if( ! usersMatched.contains(userSub) )
+            return 404
+
+                            other way to do it
+          // Ask (somehow) the userSub-domain-feed/user-server if they have the user
+          Me ----(do the work)---> OtherServer
+           |                              |
+           ^----------(ok done/exists)----<
+          // Wait response? deadlock? don't we need his password to verify if he exists or shall we also use searchUsers there? uga buga?
+        */
+        /*
+                Before the code on top of this
+            if subUserAddress.domain() == this.domain()
+                //check locally if user exists...
+         */
         ForeignFeed foreign;
         synchronized (foreignFeeds){
             foreign = foreignFeeds.computeIfAbsent(userSub, k -> new ForeignFeed()); // TODO: what if the user is local?
@@ -217,6 +239,20 @@ public class JavaFeeds implements Feeds {
         }
 
         // TODO: subscribe to other server
+        /* Iago stuff
+                            one way to do it
+         (still with var userSubServer)
+         //Now makes it difficult to subscribe since that we do on the feeds Server...
+
+                            other way to do it
+          // Ask (somehow) the userSub-domain-feed/user-server to make this user, his subscriber
+          Me ----(do the work)---> OtherServer
+           |                              |
+           ^-----(ok done/subscribed)-----<
+          // Wait response? deadlock? uga buga?
+        */
+        // Wait... did james wanted something like (Map<String, String (the serverDomain) > serversThatThisUserSubscribedTo.putIfAbsent(thisUser, subDomain) ??)
+
         return Result.error(ErrorCode.NO_CONTENT);
     }
 
