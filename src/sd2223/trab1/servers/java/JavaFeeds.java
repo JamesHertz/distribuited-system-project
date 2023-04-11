@@ -18,6 +18,27 @@ import java.util.stream.Stream;
 import static sd2223.trab1.api.java.Result.ErrorCode;
 
 // next test 3b :)
+/*
+how to update the messages of others peers?
+
+cache version:
+    When getMessage is ask we will ask for the respective feeds server for the messages
+    if the messages is not already on cache
+    Once we get the reply we store the result in a cache so the next time we can avoid some RTT
+
+post version:
+    When a user publish a message it's feed server will be responsible to announce to
+    all it's subscribers server about the changes.
+
+ */
+/*
+TODO:
+    - change remove
+    - change create
+    - add a method to remove a user
+    - add a method to subscribe to an user of another server
+    - add a method to unsubscribe to an user of another server
+ */
 public class JavaFeeds implements Feeds {
 
     private static final Logger Log = Logger.getLogger(JavaFeeds.class.getName());
