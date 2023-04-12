@@ -55,5 +55,9 @@ public class RestUsersResource extends RestResource implements UsersService {
 		super.fromJavaResult( impl.verifyPassword(name, pwd) );
 	}
 
+	@Override
+	public void verifyUser(String name) {
+		super.fromJavaResult( impl.verifyUser(name) );
+	}
 
 }

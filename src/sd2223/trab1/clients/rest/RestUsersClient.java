@@ -3,6 +3,8 @@ package sd2223.trab1.clients.rest;
 import java.net.URI;
 import java.util.List;
 
+import jakarta.ws.rs.core.GenericEntity;
+import jakarta.ws.rs.core.GenericType;
 import sd2223.trab1.api.User;
 import sd2223.trab1.api.java.Result;
 import sd2223.trab1.api.java.Users;
@@ -64,6 +66,17 @@ public class RestUsersClient extends RestClient implements Users {
 	}
 
 	@Override
+	public Result<Void> verifyUser(String name) {
+		return super.reTry( () -> {
+			Response r = target.path(name)
+					.path(UsersService.EXISTS)
+					.request()
+					.get();
+			return super.toJavaResult(r, Void.class);
+		});
+	}
+
+	@Override
 	public Result<User> updateUser(String userId, String password, User user) {
 		throw new RuntimeException("Not Implemented...");
 	}
@@ -76,5 +89,5 @@ public class RestUsersClient extends RestClient implements Users {
 	@Override
 	public Result<List<User>> searchUsers(String pattern) {
 		throw new RuntimeException("Not Implemented...");
-	}	
+	}
 }

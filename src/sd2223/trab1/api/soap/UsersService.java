@@ -63,4 +63,7 @@ public interface UsersService {
 	
 	@WebMethod
 	void verifyPassword(String name, String pwd) throws UsersException;
+
+	@WebMethod
+	void verifyUser(String name) throws UsersException;
 }

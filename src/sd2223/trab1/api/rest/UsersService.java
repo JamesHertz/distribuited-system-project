@@ -21,7 +21,8 @@ public interface UsersService {
 	String NAME = "name";
 	String QUERY = "query";
 	String PATH = "/users";
-	
+	String EXISTS = "exists";
+
 	/**
 	 * Creates a new user in the local domain.
 	 * @param user User to be created
@@ -93,9 +94,12 @@ public interface UsersService {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	List<User> searchUsers(@QueryParam(QUERY) String pattern);
-	
-	
+
 	@GET
 	@Path("/{" + NAME+ "}/" + PWD)
 	void verifyPassword(@PathParam(NAME) String name, @QueryParam(PWD) String pwd);
+
+	@GET
+	@Path("/{" + NAME+ "}/" + EXISTS )
+	void verifyUser( @PathParam(NAME) String name );
 }

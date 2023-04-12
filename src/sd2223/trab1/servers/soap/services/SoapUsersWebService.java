@@ -32,7 +32,12 @@ public class SoapUsersWebService extends SoapWebService<UsersException> implemen
 	public void verifyPassword(String name, String pwd) throws UsersException {
 		super.fromJavaResult( impl.verifyPassword(name, pwd));
 	}
-	
+
+	@Override
+	public void verifyUser(String name) throws UsersException {
+		super.fromJavaResult( impl.verifyUser(name) );
+	}
+
 	@Override
 	public void updateUser(String name, String pwd, User user) throws UsersException {
 		super.fromJavaResult( impl.updateUser(name, pwd, user));

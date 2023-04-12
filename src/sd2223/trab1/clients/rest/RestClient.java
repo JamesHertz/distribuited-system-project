@@ -4,6 +4,7 @@ import static sd2223.trab1.api.java.Result.error;
 import static sd2223.trab1.api.java.Result.ok;
 
 import java.net.URI;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
@@ -60,9 +61,9 @@ public class RestClient {
 			var status = r.getStatusInfo().toEnum();
 			if (status == Status.OK && r.hasEntity())
 				return ok(r.readEntity(entityType));
-			else 
+			else
 				if( status == Status.NO_CONTENT) return ok();
-			
+
 			return error(getErrorCodeFrom(status.getStatusCode()));
 		} finally {
 			r.close();

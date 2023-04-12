@@ -70,9 +70,9 @@ public class JavaUsers implements Users {
 		}
 		
 		//Check if the password is correct
-		if( !user.getPwd().equals( pwd)) {
+		if( !user.getPwd().equals( pwd ) ) {
 			Log.info("Password is incorrect.");
-			return Result.error( ErrorCode.FORBIDDEN);
+			return Result.error( ErrorCode.FORBIDDEN );
 		}
 		
 		return Result.ok(user);
@@ -182,4 +182,12 @@ public class JavaUsers implements Users {
 		else
 			return Result.error( res.error() );
 	}
+
+	@Override
+	public Result<Void> verifyUser(String name) {
+		return Result.error (
+				users.containsKey(name) ? ErrorCode.NO_CONTENT : ErrorCode.NOT_FOUND
+		);
+	}
+
 }

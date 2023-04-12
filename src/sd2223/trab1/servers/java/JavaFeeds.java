@@ -64,7 +64,7 @@ public class JavaFeeds implements Feeds {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
-        Users usersServer = getMyUserServer();
+        Users usersServer = getMyUsersServer();
 
         if (usersServer == null) {
             System.out.println("Unable to contact the user server.");
@@ -78,10 +78,7 @@ public class JavaFeeds implements Feeds {
             return Result.error(err.error());
         }
 
-        LocalUser userInfo;
-        synchronized (allUserInfo) {
-            userInfo = (LocalUser) allUserInfo.computeIfAbsent(user, k -> new LocalUser());
-        }
+        LocalUser userInfo = getOrCreateLocalUser(user);
 
         var messages = userInfo.getUserMessages();
         long mid = generator.nextID();
@@ -102,7 +99,7 @@ public class JavaFeeds implements Feeds {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
-        var usersServer = this.getMyUserServer();
+        var usersServer = this.getMyUsersServer();
         if (usersServer == null) {
             Log.info("Unable to connect user server.");
             return Result.error(ErrorCode.TIMEOUT);
@@ -298,11 +295,26 @@ public class JavaFeeds implements Feeds {
         }
 
         if( userInfo == null ) {
-            // check if the user exists, if it does create a new one else return an error :)
+            var myUsersServer = this.getMyUsersServer();
+            if(myUsersServer == null ){
+                Log.info("Ops my users sever didn't answer me.");
+                return Result.error( ErrorCode.TIMEOUT );
+            }
+
+            Result<Void> err;
+            if(! ( err = myUsersServer.verifyUser( address.username() ) ).isOK()){
+               Log.info("User doesn't exist");
+               return Result.error( err.error() );
+            }
+
+            userInfo = getOrCreateLocalUser(user); // maybe someone just created the user :)
+        }
+        synchronized (userInfo){
+            var subs = userInfo.getSubscribers();
+            subs.add(domain);
         }
 
-
-        return null;
+        return Result.ok();
     }
 
     private LocalUser getOrCreateLocalUser(String userAddress){
@@ -317,7 +329,7 @@ public class JavaFeeds implements Feeds {
         // return user instanceof LocalUser ? (LocalUser) user : null;
     }
 
-    private Users getMyUserServer() {
+    private Users getMyUsersServer() {
         return this.getUserServer(this.domain);
     }
 
@@ -329,8 +341,6 @@ public class JavaFeeds implements Feeds {
     }
 
     private Feeds getFeedServer(String serverDomain){
-        if(serverDomain.equals(this.domain))
-            return this;
         // some logic :)
         return null;
     }
