@@ -19,4 +19,6 @@ public interface Feeds {
     Result<Void> unSubscribeUser(String user, String userSub, String pwd);
 
     Result<List<String>> listSubs(String user);
+
+    Result<Void> subscribeServer(String user, String domain);
 }

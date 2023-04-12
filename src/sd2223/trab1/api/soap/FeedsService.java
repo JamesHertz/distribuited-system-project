@@ -103,4 +103,7 @@ public interface FeedsService {
 	 */
 	@WebMethod
 	List<String> listSubs(String user) throws FeedsException;
+
+	@WebMethod
+	void subscribeSever(String user, String domain) throws FeedsException;
 }

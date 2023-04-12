@@ -128,4 +128,12 @@ public interface FeedsService {
 	@Path("/sub/list/{" + USER + "}")
 	@Produces(MediaType.APPLICATION_JSON)
 	List<String> listSubs(@PathParam(USER) String user);
+
+	@POST
+	@Path("/sub/{" + USER + "}/server/{" + DOMAIN + "}")
+	void subscribeServer(@PathParam(USER) String user, @PathParam(DOMAIN) String domain);
+
+	// @DELETE
+	// @Path("/sub/{" + USER + "}/server/{" + DOMAIN + "}")
+	// void unsubscribeServer(@PathParam(USER) String user, @PathParam(DOMAIN) String domain);
 }

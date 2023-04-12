@@ -51,4 +51,9 @@ public class SoapFeedsWebService extends SoapWebService<FeedsException> implemen
     public List<String> listSubs(String user) throws FeedsException {
         return super.fromJavaResult( impl.listSubs(user) );
     }
+
+    @Override
+    public void subscribeSever(String user, String domain) throws FeedsException {
+        super.fromJavaResult( impl.subscribeServer(user, domain) );
+    }
 }
