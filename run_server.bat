@@ -1,3 +1,5 @@
+@echo off
+
 REM #!/usr/bin/env bash
 REM set -e
 REM 
@@ -35,7 +37,6 @@ REM docker run --rm -it --network "$NETWORK" $EXPOSED  "$IMAGE" $CMD
 REM 
 REM 
 
-@echo off
 set JAR_FILE=sd2223.jar
 set NETWORK=sd-proj1
 set PORT=8080
@@ -48,7 +49,7 @@ if "%1%"=="-build" (
 )
 
 if "%1%"=="-p" (
-    set IN_PORT = "%2%"
+    set IN_PORT ="%2%"
     set EXPOSED=-p %IN_PORT%:8080
     shift
     shift
