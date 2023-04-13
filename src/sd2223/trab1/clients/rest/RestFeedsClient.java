@@ -54,10 +54,10 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<Void> subscribeServer(String user, String domain) {
+    public Result<Void> subscribeServer(String domain, String user) {
         return super.reTry( () -> {
-            var r = target.path(FeedsService.SUB)
-                    .path(user).path( FeedsService.SERVER )
+            var r = target.path( FeedsService.SUBSERVER)
+                    .path(domain).path(user)
                     .request()
                     .post(Entity.json(null));
             return super.toJavaResult(r, Void.class);

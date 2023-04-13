@@ -62,7 +62,7 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     }
 
     @Override
-    public Result<Void> subscribeServer(String user, String domain) {
-        throw new RuntimeException("Not Implemented...");
+    public Result<Void> subscribeServer(String domain, String user) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().subscribeSever(domain, user) ) );
     }
 }

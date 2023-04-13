@@ -15,9 +15,8 @@ public interface FeedsService {
 	String TIME = "time";
 	String DOMAIN = "domain";
 	String USERSUB = "userSub";
-	String SERVER = "server";
-	String SUB = "sub";
-	
+	String SUBSERVER = "subserver";
+
 	String PATH = "/feeds";
 	/**
 	 * Posts a new message in the feed, associating it to the feed of the specific user.
@@ -117,8 +116,6 @@ public interface FeedsService {
 	@Produces(MediaType.APPLICATION_JSON)
 	void unsubscribeUser(@PathParam(USER) String user, @PathParam(USERSUB) String userSub, @QueryParam(PWD) String pwd);
 
-
-
 	/**
 	 * Subscribed users.
 	 *
@@ -132,8 +129,8 @@ public interface FeedsService {
 	List<String> listSubs(@PathParam(USER) String user);
 
 	@POST
-	@Path("/" + SUB +"/{" + USER + "}/"+ SERVER +"/{" + DOMAIN + "}")
-	void subscribeServer(@PathParam(USER) String user, @PathParam(DOMAIN) String domain);
+	@Path("/" + SUBSERVER + "/{" + DOMAIN + "}/{" + USER + "}")
+	void subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
 
 	// @DELETE
 	// @Path("/sub/{" + USER + "}/server/{" + DOMAIN + "}")

@@ -192,6 +192,7 @@ public class JavaFeeds implements Feeds {
     public Result<Void> subscribeUser(String user, String userSub, String pwd) {
         Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
 
+        // make this thing work :)
         var localUserAddress = Formatter.getUserAddress(user);
         var subUserAddress   = Formatter.getUserAddress(userSub);
         if( localUserAddress == null || subUserAddress == null || user.equals(userSub)
@@ -212,10 +213,28 @@ public class JavaFeeds implements Feeds {
             return Result.error( err.error() );
         }
 
-        // if(subUserInfo == null){
-        // }
-
         var userInfo = this.getOrCreateLocalUser(user);
+
+        FeedUser subUserInfo;
+        synchronized (allUserInfo){
+            subUserInfo = allUserInfo.get(userSub);
+        }
+
+        if( subUserInfo == null ){
+           var feedsServer = this.getFeedServer( subUserAddress.domain() );
+           if( feedsServer == null ){
+               Log.info("Problem connecting to feeds server.");
+               return Result.error( ErrorCode.NOT_FOUND );
+           }
+
+           Result<Void> res;
+           if(! ( res = feedsServer.subscribeServer(this.domain, userSub)).isOK() ){
+               Log.info("Could not subscribe server :(");
+               return Result.error( res.error() );
+           }
+
+        }
+
         synchronized (userInfo){
             var subs = userInfo.getSubscriptions();
             subs.add(userSub); // great :)
@@ -259,7 +278,8 @@ public class JavaFeeds implements Feeds {
     }
 
     @Override
-    public Result<Void> subscribeServer(String user, String domain) {
+    public Result<Void> subscribeServer(String domain, String user) { // and external server subscribing in one of my local user
+        Log.info("Subscribe Server: domain=" + domain + " user=" + user);
         var address = Formatter.getUserAddress(user);
         if(address == null || ! this.domain.equals(address.domain()) ){
             Log.info("Bad user address.");
@@ -269,23 +289,25 @@ public class JavaFeeds implements Feeds {
         var userInfo = this.getLocalUser(user);
 
         if( userInfo == null ) {
-            var myUsersServer = this.getMyUsersServer();
-            if(myUsersServer == null ){
-                Log.info("Ops my users sever didn't answer me.");
+            var usersServer = this.getMyUsersServer();
+            if( usersServer == null ){
+                Log.info("Ops my users server didn't answer me.");
                 return Result.error( ErrorCode.TIMEOUT );
             }
 
             Result<Void> err;
-            if(! ( err = myUsersServer.verifyUser( address.username() ) ).isOK()){
+            if(! ( err = usersServer.verifyUser( address.username() ) ).isOK()){
                Log.info("User doesn't exist");
                return Result.error( err.error() );
             }
 
             userInfo = getOrCreateLocalUser(user); // maybe someone just created the user :)
         }
+
         synchronized (userInfo){
             var subs = userInfo.getSubscribers();
             subs.add(domain);
+            Log.info("servers: " + subs.toString());
         }
 
         return Result.ok();
@@ -318,8 +340,21 @@ public class JavaFeeds implements Feeds {
 
     private Feeds getFeedServer(String serverDomain){
         // some logic :)
-        return null;
+        var ds = Discovery.getInstance();
+        URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
+        if(serverURI.length == 0) return null;
+        return ClientFactory.getFeedsClient(serverURI[0]);
     }
+
+    /*
+        iago@fct
+        james@fct
+        inscreve( iago@fct, james@fct )
+
+        user(iago@fct).addSubscription( james@fct )
+        delete(james@fct)
+        user(iago@fct).deleteSubscription( james@fct )
+     */
 
 
     private static abstract class FeedUser {

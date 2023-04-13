@@ -20,5 +20,5 @@ public interface Feeds {
 
     Result<List<String>> listSubs(String user);
 
-    Result<Void> subscribeServer(String user, String domain);
+    Result<Void> subscribeServer(String domain, String user);
 }
