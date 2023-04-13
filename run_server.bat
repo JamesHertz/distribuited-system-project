@@ -55,8 +55,8 @@ if "%1%"=="-p" (
     shift
 )
 
-if %1%=="" goto error
-if %2%=="" goto error
+if %1%=="" & goto error
+if %2%=="" & goto error
 
 set CMD=java -cp %JAR_FILE% sd2223.trab1.servers.rest.RestServer %*
 echo "running: %*"
