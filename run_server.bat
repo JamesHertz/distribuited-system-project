@@ -39,6 +39,7 @@ REM
 
 set JAR_FILE=sd2223.jar
 set NETWORK=sd-proj1
+set IMAGE=sd2223-trab1-60198-61177
 set PORT=8080
 set EXPOSED=--expose %PORT% -P
 
@@ -55,8 +56,8 @@ if "%1%"=="-p" (
     shift
 )
 
-if %1%=="" & goto error
-if %2%=="" & goto error
+if %1%=="" GOTO error
+if %2%=="" GOTO error
 
 set CMD=java -cp %JAR_FILE% sd2223.trab1.servers.rest.RestServer %*
 echo "running: %*"
