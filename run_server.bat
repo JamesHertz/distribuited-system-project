@@ -56,14 +56,18 @@ if "%1%"=="-p" (
     shift
 )
 
-if %1%=="" GOTO error
-if %2%=="" GOTO error
+if %1%=="" goto error
+if %2%=="" goto error
 
 set CMD=java -cp %JAR_FILE% sd2223.trab1.servers.rest.RestServer %*
 echo "running: %*"
 docker run --rm -it --network %NETWORK% %EXPOSE%  %$IMAGE% %CMD%
 
+goto end
+
 :error
-echo usage: %0 <domain> [ users | feeds ]
-echo ERROR: wrong number of arguments
+echo "usage: %0% <domain> [ users | feeds ]"
+echo "ERROR: wrong number of arguments"
 exit /b 1
+
+:end
