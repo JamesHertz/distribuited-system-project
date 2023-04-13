@@ -15,6 +15,8 @@ public interface FeedsService {
 	String TIME = "time";
 	String DOMAIN = "domain";
 	String USERSUB = "userSub";
+	String SERVER = "server";
+	String SUB = "sub";
 	
 	String PATH = "/feeds";
 	/**
@@ -130,7 +132,7 @@ public interface FeedsService {
 	List<String> listSubs(@PathParam(USER) String user);
 
 	@POST
-	@Path("/sub/{" + USER + "}/server/{" + DOMAIN + "}")
+	@Path("/" + SUB +"/{" + USER + "}/"+ SERVER +"/{" + DOMAIN + "}")
 	void subscribeServer(@PathParam(USER) String user, @PathParam(DOMAIN) String domain);
 
 	// @DELETE
