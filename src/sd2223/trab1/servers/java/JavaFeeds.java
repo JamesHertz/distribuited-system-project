@@ -12,6 +12,7 @@ import sd2223.trab1.utils.IDGenerator;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -118,7 +119,7 @@ public class JavaFeeds implements Feeds {
 
         if (userInfo != null) {
             var messages = userInfo.getUserMessages();
-            if (messages.remove(mid) != null){
+            if (messages.remove(mid) != null) {
                 return Result.error(ErrorCode.NO_CONTENT);
                 // TODO propagate message :)
             }
@@ -133,9 +134,9 @@ public class JavaFeeds implements Feeds {
         Log.info(String.format("getMessages: user=%s ; mid=%d", user, mid));
         var address = Formatter.getUserAddress(user);
 
-        if(address == null || ! this.domain.equals(address.domain()) ){
+        if (address == null || !this.domain.equals(address.domain())) {
             Log.info("Bad address");
-            return Result.error( ErrorCode.BAD_REQUEST);
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
 
         var userInfo = this.getLocalUser(user);
@@ -165,9 +166,9 @@ public class JavaFeeds implements Feeds {
         Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
 
         var address = Formatter.getUserAddress(user);
-        if(address == null || ! this.domain.equals(address.domain()) ){
+        if (address == null || !this.domain.equals(address.domain())) {
             Log.info("Invalid address");
-            return Result.error( ErrorCode.BAD_REQUEST);
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
 
         var userInfo = this.getLocalUser(user);
@@ -194,53 +195,52 @@ public class JavaFeeds implements Feeds {
 
         // make this thing work :)
         var localUserAddress = Formatter.getUserAddress(user);
-        var subUserAddress   = Formatter.getUserAddress(userSub);
-        if( localUserAddress == null || subUserAddress == null || user.equals(userSub)
-              || ! this.domain.equals(localUserAddress.domain()) || pwd == null ){
+        var subUserAddress = Formatter.getUserAddress(userSub);
+        if (localUserAddress == null || subUserAddress == null || user.equals(userSub)
+                || !this.domain.equals(localUserAddress.domain()) || pwd == null) {
             Log.info("Bad address, domain or pwd.");
-            return Result.error( ErrorCode.BAD_REQUEST );
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
 
         var usersServer = this.getMyUsersServer();
-        if( usersServer == null ){
+        if (usersServer == null) {
             Log.info("Problems getting to user server.");
-            return Result.error( ErrorCode.TIMEOUT );
+            return Result.error(ErrorCode.TIMEOUT);
         }
 
         Result<Void> err;
-        if( ! (err = usersServer.verifyPassword(localUserAddress.username(), pwd) ).isOK() ) {
+        if (!(err = usersServer.verifyPassword(localUserAddress.username(), pwd)).isOK()) {
             Log.info("User doesn't exist or pwd is wrong.");
-            return Result.error( err.error() );
+            return Result.error(err.error());
         }
 
         var userInfo = this.getOrCreateLocalUser(user);
 
-        FeedUser subUserInfo;
-        synchronized (allUserInfo){
-            subUserInfo = allUserInfo.get(userSub);
+        // by now :) what about inscriptions in local users
+        var subUserInfo = (RemoteUser) this.getUser(userSub);
+
+        if (subUserInfo == null) {
+            var feedsServer = this.getFeedServer(subUserAddress.domain());
+            if (feedsServer == null) {
+                Log.info("Problem connecting to feeds server.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+
+            Result<Void> res;
+            if (!(res = feedsServer.subscribeServer(this.domain, userSub)).isOK()) {
+                Log.info("Could not subscribe server :(");
+                return Result.error(res.error());
+            }
+
+            subUserInfo = this.getOrCreateRemoteUser(userSub);
         }
 
-        if( subUserInfo == null ){
-           var feedsServer = this.getFeedServer( subUserAddress.domain() );
-           if( feedsServer == null ){
-               Log.info("Problem connecting to feeds server.");
-               return Result.error( ErrorCode.NOT_FOUND );
-           }
-
-           Result<Void> res;
-           if(! ( res = feedsServer.subscribeServer(this.domain, userSub)).isOK() ){
-               Log.info("Could not subscribe server :(");
-               return Result.error( res.error() );
-           }
-
-        }
-
-        synchronized (userInfo){
+        synchronized (userInfo) {
             var subs = userInfo.getSubscriptions();
             subs.add(userSub); // great :)
         }
 
-        return Result.error( ErrorCode.NO_CONTENT );
+        return Result.error(ErrorCode.NO_CONTENT);
     }
 
 
@@ -254,21 +254,21 @@ public class JavaFeeds implements Feeds {
         Log.info("listSubs: user=" + user);
         var address = Formatter.getUserAddress(user);
 
-        if( address == null || !this.domain.equals(address.domain()) ) {
+        if (address == null || !this.domain.equals(address.domain())) {
             Log.info("Bad request");
-            return Result.error( ErrorCode.BAD_REQUEST );
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
 
         var userInfo = this.getLocalUser(user);
 
-        if( userInfo == null ){
+        if (userInfo == null) {
             Log.info("User doesn't exist.");
-            return Result.error( ErrorCode.NOT_FOUND );
+            return Result.error(ErrorCode.NOT_FOUND);
         }
 
-        synchronized (userInfo){
+        synchronized (userInfo) {
             return Result.ok(
-                    userInfo.getSubscribers()
+                    userInfo.getSubscriptions()
                             .stream()
                             .toList()
             );
@@ -281,68 +281,84 @@ public class JavaFeeds implements Feeds {
     public Result<Void> subscribeServer(String domain, String user) { // and external server subscribing in one of my local user
         Log.info("Subscribe Server: domain=" + domain + " user=" + user);
         var address = Formatter.getUserAddress(user);
-        if(address == null || ! this.domain.equals(address.domain()) ){
+        if (address == null || !this.domain.equals(address.domain())) {
             Log.info("Bad user address.");
-            return Result.error( ErrorCode.BAD_REQUEST );
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
 
         var userInfo = this.getLocalUser(user);
 
-        if( userInfo == null ) {
+        if (userInfo == null) {
             var usersServer = this.getMyUsersServer();
-            if( usersServer == null ){
+            if (usersServer == null) {
                 Log.info("Ops my users server didn't answer me.");
-                return Result.error( ErrorCode.TIMEOUT );
+                return Result.error(ErrorCode.TIMEOUT);
             }
 
             Result<Void> err;
-            if(! ( err = usersServer.verifyUser( address.username() ) ).isOK()){
-               Log.info("User doesn't exist");
-               return Result.error( err.error() );
+            if (!(err = usersServer.verifyUser(address.username())).isOK()) {
+                Log.info("User doesn't exist");
+                return Result.error(err.error());
             }
 
             userInfo = getOrCreateLocalUser(user); // maybe someone just created the user :)
         }
 
-        synchronized (userInfo){
-            var subs = userInfo.getSubscribers();
-            subs.add(domain);
-            Log.info("servers: " + subs.toString());
+        if (!domain.equals(this.domain)) {
+            synchronized (userInfo) {
+                var subs = userInfo.getSubscribers();
+                subs.add(domain);
+                Log.info("servers: " + subs.toString());
+            }
         }
 
         return Result.ok();
     }
 
-    private LocalUser getOrCreateLocalUser(String userAddress){
-        synchronized (userAddress){
+    private LocalUser getOrCreateLocalUser(String userAddress) {
+        synchronized (userAddress) {
             return (LocalUser) allUserInfo.computeIfAbsent(userAddress, k -> new LocalUser());
         }
     }
 
+
+    private RemoteUser getOrCreateRemoteUser(String userAddress) {
+        synchronized (userAddress) {
+            return  (RemoteUser) allUserInfo.computeIfAbsent(userAddress, k -> new RemoteUser());
+        }
+    }
+
     private LocalUser getLocalUser(String userAddress) {
-        synchronized (allUserInfo){
+        synchronized (allUserInfo) {
             return (LocalUser) allUserInfo.get(userAddress);
         }
         // var user = allUserInfo.get(userAddress);
         // return user instanceof LocalUser ? (LocalUser) user : null;
     }
 
+    private FeedUser getUser(String userAddress) {
+        synchronized (allUserInfo) {
+            return allUserInfo.get(userAddress);
+        }
+    }
+
     private Users getMyUsersServer() {
         return this.getUserServer(this.domain);
     }
 
-    private Users getUserServer(String serverDomain){
+    private Users getUserServer(String serverDomain) {
         var ds = Discovery.getInstance();
         URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.USERS_SERVICE), 1);
         if (serverURIs.length == 0) return null;
         return ClientFactory.getUsersClient(serverURIs[0]);
     }
 
-    private Feeds getFeedServer(String serverDomain){
-        // some logic :)
+    private Feeds getFeedServer(String serverDomain) {
+        if (this.domain.equals(serverDomain)) return this;
+
         var ds = Discovery.getInstance();
         URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
-        if(serverURI.length == 0) return null;
+        if (serverURI.length == 0) return null;
         return ClientFactory.getFeedsClient(serverURI[0]);
     }
 

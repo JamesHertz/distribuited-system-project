@@ -30,6 +30,6 @@ fi
 #CMD="java -cp "$JAR_FILE" sd2223.trab1.server.RestServer $@"
 CMD="java -cp "$JAR_FILE" sd2223.trab1.servers.rest.RestServer $@"
 
-echo "running: $@"
+echo "running: $*"
 docker run --rm -it --network "$NETWORK" $EXPOSED  "$IMAGE" $CMD
 
