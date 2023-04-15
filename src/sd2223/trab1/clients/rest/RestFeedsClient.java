@@ -2,6 +2,7 @@ package sd2223.trab1.clients.rest;
 
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 import sd2223.trab1.api.Message;
 import sd2223.trab1.api.java.Feeds;
 import sd2223.trab1.api.java.Result;
@@ -60,6 +61,17 @@ public class RestFeedsClient extends RestClient implements Feeds {
                     .path(domain).path(user)
                     .request()
                     .post(Entity.json(null));
+            return super.toJavaResult(r, Void.class);
+        });
+    }
+
+    @Override
+    public Result<Void> receiveMessage(String user, Message msg) {
+        return super.reTry( () -> {
+            var r = target.path( "receive")
+                    .path(user)
+                    .request()
+                    .post(Entity.entity(msg, MediaType.APPLICATION_JSON_TYPE));
             return super.toJavaResult(r, Void.class);
         });
     }

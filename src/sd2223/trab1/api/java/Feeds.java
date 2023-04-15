@@ -8,6 +8,8 @@ public interface Feeds {
 
     Result<Long> postMessage(String user, String pwd, Message msg);
 
+    Result<Void> receiveMessage(String user, Message msg);
+
     Result<Void> removeFromPersonalFeed(String user, long mid, String pwd);
 
     Result<Message> getMessage(String user, long mid);

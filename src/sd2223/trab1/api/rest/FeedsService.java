@@ -132,6 +132,10 @@ public interface FeedsService {
 	@Path("/" + SUBSERVER + "/{" + DOMAIN + "}/{" + USER + "}")
 	void subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
 
+	@POST
+	@Path("/receive/{" + USER + "}")
+	void receiveMessage( @PathParam(USER) String user, Message msg );
+
 	// @DELETE
 	// @Path("/sub/{" + USER + "}/server/{" + DOMAIN + "}")
 	// void unsubscribeServer(@PathParam(USER) String user, @PathParam(DOMAIN) String domain);

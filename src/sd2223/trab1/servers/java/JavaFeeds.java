@@ -12,7 +12,6 @@ import sd2223.trab1.utils.IDGenerator;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -47,7 +46,6 @@ public class JavaFeeds implements Feeds {
     private final String domain;
     private final IDGenerator generator;
     private final Map<String, FeedUser> allUserInfo;
-    // private final Map<String, RemoteUser> remoteUsers;
 
     public JavaFeeds(String domain, long baseNumber) {
         this.domain = domain;
@@ -88,9 +86,18 @@ public class JavaFeeds implements Feeds {
         msg.setCreationTime(System.currentTimeMillis());
         messages.put(mid, msg);
         // TODO: send the message to all subscribers
+        for(String domain : userInfo.getSubscribers().stream().toList()){
+            getFeedServer(domain).receiveMessage(user,msg);
+        }
         return Result.ok(mid);
     }
-
+    @Override
+    public Result<Void> receiveMessage(String user, Message msg){
+        synchronized (allUserInfo) {
+            allUserInfo.get(user).userMessages.put(msg.getId(), msg);
+        }
+        return Result.ok();
+    }
     @Override
     public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
         var address = Formatter.getUserAddress(user);
@@ -202,6 +209,7 @@ public class JavaFeeds implements Feeds {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
+        //Verificar userserver e user
         var usersServer = this.getMyUsersServer();
         if (usersServer == null) {
             Log.info("Problems getting to user server.");
@@ -213,34 +221,57 @@ public class JavaFeeds implements Feeds {
             Log.info("User doesn't exist or pwd is wrong.");
             return Result.error(err.error());
         }
+        //-----------------
 
         var userInfo = this.getOrCreateLocalUser(user);
+        if(!subUserAddress.domain().equals(this.domain)) {
+            // by now :) what about inscriptions in local users
+            var subUserInfo = (RemoteUser) this.getUser(userSub);
 
-        // by now :) what about inscriptions in local users
-        var subUserInfo = (RemoteUser) this.getUser(userSub);
+            if (subUserInfo == null) {
+                var feedsServer = this.getFeedServer(subUserAddress.domain());
+                if (feedsServer == null) {
+                    Log.info("Problem connecting to feeds server.");
+                    return Result.error(ErrorCode.NOT_FOUND);
+                }
 
-        if (subUserInfo == null) {
-            var feedsServer = this.getFeedServer(subUserAddress.domain());
-            if (feedsServer == null) {
-                Log.info("Problem connecting to feeds server.");
-                return Result.error(ErrorCode.NOT_FOUND);
+                Result<Void> res;
+                if (!(res = feedsServer.subscribeServer(this.domain, userSub)).isOK()) {
+                    Log.info("Could not subscribe server :(");
+                    return Result.error(res.error());
+                }
+
+                subUserInfo = this.getOrCreateRemoteUser(userSub);
             }
 
-            Result<Void> res;
-            if (!(res = feedsServer.subscribeServer(this.domain, userSub)).isOK()) {
-                Log.info("Could not subscribe server :(");
-                return Result.error(res.error());
+            synchronized (userInfo) {
+                var subs = userInfo.getSubscriptions();
+                subs.add(userSub); // great :)
             }
 
-            subUserInfo = this.getOrCreateRemoteUser(userSub);
-        }
+            return Result.error(ErrorCode.NO_CONTENT);
+        }else{
+            // by now :) what about inscriptions in local users
+            var subUserInfo = (LocalUser) this.getUser(userSub);
 
-        synchronized (userInfo) {
-            var subs = userInfo.getSubscriptions();
-            subs.add(userSub); // great :)
-        }
+            if (subUserInfo == null) {
+                //Verificar userserver e user
+                if (!(err = usersServer.verifyUser(subUserAddress.username())).isOK()) {
+                    Log.info("User doesn't exist");
+                    return Result.error(err.error());
+                }
+                //-----------------
 
-        return Result.error(ErrorCode.NO_CONTENT);
+                subUserInfo = this.getOrCreateLocalUser(userSub);
+            }
+
+            synchronized (userInfo) {
+                var subs = userInfo.getSubscriptions();
+                subs.add(userSub); // great :)
+            }
+
+            return Result.error(ErrorCode.NO_CONTENT);
+        }
     }
 
 
@@ -388,7 +419,7 @@ public class JavaFeeds implements Feeds {
 
     private class LocalUser extends FeedUser {
         private final Set<String> subscriptions;
-        private final Set<String> subscribers;
+        private final Set<String> subscribers; //ServersSubscribers
 
         public LocalUser() {
             super();

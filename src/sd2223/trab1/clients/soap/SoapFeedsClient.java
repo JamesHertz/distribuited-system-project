@@ -32,6 +32,11 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     }
 
     @Override
+    public Result<Void> receiveMessage(String user, Message msg) {
+        throw new RuntimeException("Not Implemented...");
+    }
+
+    @Override
     public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
         throw new RuntimeException("Not Implemented...");
     }
