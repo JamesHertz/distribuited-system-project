@@ -23,4 +23,9 @@ public interface Feeds {
     Result<Void> subscribeServer(String domain, String user);
 
     Result<Void> createFeed(String user);
+
+    // Result<Void> unsubscribeServer(String domain, String user);
+    // Result<Void> createFeedMessage ( String user, Message msg );
+    // Result<Void> removeFeedMessage ( String user , int mid );
+    // Result<Void> removeFeed ( String user ); // think about this
 }

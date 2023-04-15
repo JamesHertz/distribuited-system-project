@@ -222,7 +222,7 @@ public class JavaFeeds implements Feeds {
         var localUser = this.getLocalUser( user );
 
         if(localUser == null){
-             Log.info("User not found :(");
+            Log.info("User not found :(");
             return Result.error( ErrorCode.NOT_FOUND );
         }
 
@@ -238,14 +238,13 @@ public class JavaFeeds implements Feeds {
             return Result.error(err.error());
         }
 
-
-        // by now :) what about inscriptions in local users?
-        var remoteUser = (RemoteUser) this.getUser(userSub);
-
-        if (remoteUser == null) {
+        var subUserInfo = this.getUser(userSub);
+        if (subUserInfo == null) {
             var feedsServer = this.getFeedServer(subUserAddress.domain());
+            // if we weren't able to contact the subUser feeds server of the subUser
+            // domain is our domain ( which by now means it doesn't exist )
             if (feedsServer == null) {
-                Log.info("Problem connecting to feeds server.");
+                Log.info("SubUser doesn't exist or unable to contact with it's feeds server.");
                 return Result.error( ErrorCode.NOT_FOUND );
             }
 
@@ -256,13 +255,19 @@ public class JavaFeeds implements Feeds {
             }
 
             synchronized (allUserInfo){
-                remoteUser =   (RemoteUser) allUserInfo.computeIfAbsent(userSub, k -> new RemoteUser());
+                subUserInfo =  allUserInfo.computeIfAbsent(userSub, k -> new RemoteUser());
             }
         }
 
         synchronized (localUser) {
             var subs = localUser.getSubscriptions();
             subs.add(userSub); // great :)
+        }
+
+        synchronized (subUserInfo){
+            var subsUsers = subUserInfo.getUsersSubscribers();
+            subsUsers.add(user);
+            System.out.println(subsUsers);
         }
 
         return Result.error(ErrorCode.NO_CONTENT);
@@ -320,7 +325,7 @@ public class JavaFeeds implements Feeds {
 
         if ( this.foreignDomain(domain) ) { // TODO: look at this
             synchronized (userInfo) {
-                var subs = userInfo.getSubscribers();
+                var subs = userInfo.getServerSubscribers();
                 subs.add(domain);
                 // Log.info("servers: " + subs.toString());
             }
@@ -373,7 +378,7 @@ public class JavaFeeds implements Feeds {
     }
 
     private Feeds getFeedServer(String serverDomain) {
-        if (this.domain.equals(serverDomain)) return this;
+        if (this.domain.equals(serverDomain)) return null;
 
         var ds = Discovery.getInstance();
         URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
@@ -394,24 +399,30 @@ public class JavaFeeds implements Feeds {
 
     private static abstract class FeedUser {
         private final Map<Long, Message> userMessages;
+        private final Set<String> usersSubscribers;
 
         public FeedUser() {
             this.userMessages = new ConcurrentHashMap<>(); // do we really need this:
+            this.usersSubscribers = new HashSet<>();
             // this.userMessages = new HashMap<>();
         }
 
         public Map<Long, Message> getUserMessages() {
             return userMessages;
         }
+
+        public Set<String> getUsersSubscribers(){
+            return usersSubscribers;
+        }
     }
 
     private class LocalUser extends FeedUser {
         private final Set<String> subscriptions;
-        private final Set<String> subscribers;
+        private final Set<String> serverSubscribers;
 
         public LocalUser() {
             super();
-            subscribers = new HashSet<>();
+            serverSubscribers = new HashSet<>();
             subscriptions = new HashSet<>();
         }
 
@@ -419,8 +430,8 @@ public class JavaFeeds implements Feeds {
             return subscriptions;
         }
 
-        public Set<String> getSubscribers() {
-            return subscribers;
+        public Set<String> getServerSubscribers() {
+            return serverSubscribers;
         }
 
         public Stream<Map<Long, Message>> getAllFeedMessages() {
@@ -433,25 +444,10 @@ public class JavaFeeds implements Feeds {
     }
 
     private class RemoteUser extends FeedUser {
-        // TODO: add a list with all the subscribers of this user
-        private int counter;
-
-        public RemoteUser() {
-            super();
-            this.counter = 0;
+        public boolean isOver(){
+            return this.getUsersSubscribers().isEmpty();
         }
 
-        public void incSubscriptions() {
-            this.counter++;
-        }
-
-        public void decSubscriptions() {
-            this.counter--;
-        }
-
-        public boolean isOver() {
-            return this.counter == 0;  // I am so sad :)
-        }
     }
 
 }
