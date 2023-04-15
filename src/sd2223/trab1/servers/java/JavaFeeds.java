@@ -97,6 +97,7 @@ public class JavaFeeds implements Feeds {
 
     @Override
     public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
+        Log.info(String.format("remoteFromPersonalFeed: user=%d ; long=%d ; pwd=%s", user, mid, pwd));
         var address = Formatter.getUserAddress(user);
 
         if (address == null || this.foreignDomain(address.domain()) || pwd == null) {
@@ -134,7 +135,7 @@ public class JavaFeeds implements Feeds {
 
     @Override
     public Result<Void> createFeed(String user) {
-        Log.info("postFeed: user=" + user);
+        Log.info("createFeed: user=" + user);
         var address = Formatter.getUserAddress(user);
         if (address == null || this.foreignDomain(address.domain())) {
             Log.info("Invalid user address.");
@@ -161,6 +162,7 @@ public class JavaFeeds implements Feeds {
         var userInfo = this.getLocalUser(user);
         if (userInfo != null) {
 
+            // TODO: put some prints to help you understand
             Optional<Message> res;
             synchronized (userInfo) {
                 res = userInfo.getAllFeedMessages()
@@ -253,7 +255,9 @@ public class JavaFeeds implements Feeds {
                 return Result.error(res.error());
             }
 
-            remoteUser = this.getOrCreateRemoteUser(userSub); // look at this :)
+            synchronized (allUserInfo){
+                remoteUser =   (RemoteUser) allUserInfo.computeIfAbsent(userSub, k -> new RemoteUser());
+            }
         }
 
         synchronized (localUser) {
@@ -332,15 +336,8 @@ public class JavaFeeds implements Feeds {
   //   }
 
     private boolean foreignDomain(String domain) {
-        return this.domain.equals(domain);
+        return !this.domain.equals(domain);
     }
-
-    private LocalUser getOrCreateLocalUser(String userAddress) {
-        synchronized (userAddress) {
-            return (LocalUser) allUserInfo.computeIfAbsent(userAddress, k -> new LocalUser());
-        }
-    }
-
 
     private RemoteUser getOrCreateRemoteUser(String userAddress) {
         synchronized (userAddress) {

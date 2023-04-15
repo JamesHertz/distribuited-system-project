@@ -15,7 +15,7 @@ public interface FeedsService {
 	String TIME = "time";
 	String DOMAIN = "domain";
 	String USERSUB = "userSub";
-	String SUBSERVER = "subserver";
+	String SERVERSUB = "serversub";
 
 	String PATH = "/feeds";
 	/**
@@ -88,8 +88,8 @@ public interface FeedsService {
 	 * @param user user which feeds is created (format user@domain)
 	 */
 	@POST
-	@Path("/{" + USER +"}")
-	void createFeed(@PathParam(USER) String user);
+	@Consumes(MediaType.TEXT_PLAIN)
+	void createFeed( String user );
 
 	/**
 	 * Subscribe a user.
@@ -145,7 +145,7 @@ public interface FeedsService {
 	 * @param user
 	 */
 	@POST
-	@Path("/" + SUBSERVER + "/{" + DOMAIN + "}/{" + USER + "}")
+	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
 	void subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
 
 	// @DELETE

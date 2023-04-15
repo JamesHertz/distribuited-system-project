@@ -48,7 +48,7 @@ public class SoapServer {
 			Object implementor = null;
 			switch (service) {
 				case USERS_SERVICE -> implementor = new SoapUsersWebService(new JavaUsers(domain));
-				case FEEDS_SERVICE ->  implementor = new SoapFeedsWebService(new JavaFeeds(domain, baseNumber));
+				case FEEDS_SERVICE -> implementor = new SoapFeedsWebService(new JavaFeeds(domain, baseNumber));
 				default -> {
 					System.out.println("ERROR: invalid service: " + service);
 					System.exit(1);
