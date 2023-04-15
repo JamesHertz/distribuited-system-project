@@ -83,6 +83,15 @@ public interface FeedsService {
 	List<Message> getMessages(@PathParam(USER) String user, @QueryParam(TIME) long time);
 
 	/**
+	 * Creates a feed for a user in the feeds server.
+	 * The user domain should be the same as the feeds.
+	 * @param user user which feeds is created (format user@domain)
+	 */
+	@POST
+	@Path("/{" + USER +"}")
+	void createFeed(@PathParam(USER) String user);
+
+	/**
 	 * Subscribe a user.
 	 * A user must contact the server of her domain directly (i.e., this operation should not be
 	 * propagated to other domain)
@@ -128,6 +137,13 @@ public interface FeedsService {
 	@Produces(MediaType.APPLICATION_JSON)
 	List<String> listSubs(@PathParam(USER) String user);
 
+	/**
+	 * Subscribe an outsider feeds server to a user of the receiving feeds.
+	 * This means this server will be notified whenever a message is posted
+	 * in this user feeds.
+	 * @param domain
+	 * @param user
+	 */
 	@POST
 	@Path("/" + SUBSERVER + "/{" + DOMAIN + "}/{" + USER + "}")
 	void subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );

@@ -99,7 +99,4 @@ public interface UsersService {
 	@Path("/{" + NAME+ "}/" + PWD)
 	void verifyPassword(@PathParam(NAME) String name, @QueryParam(PWD) String pwd);
 
-	@GET
-	@Path("/{" + NAME+ "}/" + EXISTS )
-	void verifyUser( @PathParam(NAME) String name );
 }

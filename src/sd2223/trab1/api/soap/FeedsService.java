@@ -106,4 +106,14 @@ public interface FeedsService {
 
 	@WebMethod
 	void subscribeSever(String domain, String user) throws FeedsException;
+
+
+	/**
+	 * Creates a feed for a user in the feeds server.
+	 * The user domain should be the same as the feeds.
+	 * @param user user which feeds is created (format user@domain)
+	 */
+	@WebMethod
+	void createFeed(String user)  throws FeedsException;
+
 }

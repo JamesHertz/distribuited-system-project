@@ -66,17 +66,6 @@ public class RestUsersClient extends RestClient implements Users {
 	}
 
 	@Override
-	public Result<Void> verifyUser(String name) {
-		return super.reTry( () -> {
-			Response r = target.path(name)
-					.path(UsersService.EXISTS)
-					.request()
-					.get();
-			return super.toJavaResult(r, Void.class);
-		});
-	}
-
-	@Override
 	public Result<User> updateUser(String userId, String password, User user) {
 		throw new RuntimeException("Not Implemented...");
 	}

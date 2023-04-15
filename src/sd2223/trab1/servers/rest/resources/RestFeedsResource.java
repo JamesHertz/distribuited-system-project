@@ -35,6 +35,11 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
+    public void createFeed(String user) {
+        super.fromJavaResult( impl.createFeed(user) );
+    }
+
+    @Override
     public void subUser(String user, String userSub, String pwd) {
         super.fromJavaResult( impl.subscribeUser(user, userSub, pwd ) );
     }

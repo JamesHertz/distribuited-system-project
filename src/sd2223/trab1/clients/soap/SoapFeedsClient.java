@@ -65,4 +65,9 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     public Result<Void> subscribeServer(String domain, String user) {
         return super.reTry( () -> super.toJavaResult( () -> stub().subscribeSever(domain, user) ) );
     }
+
+    @Override
+    public Result<Void> createFeed(String user) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().createFeed( user ) ) );
+    }
 }

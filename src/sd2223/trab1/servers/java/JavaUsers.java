@@ -1,5 +1,6 @@
 package sd2223.trab1.servers.java;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,9 +8,12 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import sd2223.trab1.api.User;
+import sd2223.trab1.api.java.Feeds;
 import sd2223.trab1.api.java.Result;
 import sd2223.trab1.api.java.Result.ErrorCode;
 import sd2223.trab1.api.java.Users;
+import sd2223.trab1.clients.ClientFactory;
+import sd2223.trab1.discovery.Discovery;
 import sd2223.trab1.utils.Formatter;
 
 public class JavaUsers implements Users {
@@ -44,7 +48,12 @@ public class JavaUsers implements Users {
 			}
 		}
 
-		return Result.ok( Formatter.makeUserAddress( user.getName() , this.domain ) );
+		var userAddress =  Formatter.makeUserAddress( user.getName() , this.domain );
+
+		// TODO: make this persistent :)
+		var feedsServer = this.getMyFeedsServer();
+		feedsServer.createFeed( userAddress );
+		return Result.ok( userAddress );
 	}
 
 	@Override
@@ -183,11 +192,11 @@ public class JavaUsers implements Users {
 			return Result.error( res.error() );
 	}
 
-	@Override
-	public Result<Void> verifyUser(String name) {
-		return Result.error (
-				users.containsKey(name) ? ErrorCode.NO_CONTENT : ErrorCode.NOT_FOUND
-		);
+
+	private Feeds getMyFeedsServer(){
+		var ds = Discovery.getInstance();
+		URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(this.domain, Formatter.FEEDS_SERVICE), 1);
+		return ClientFactory.getFeedsClient(serverURIs[0]);
 	}
 
 }
