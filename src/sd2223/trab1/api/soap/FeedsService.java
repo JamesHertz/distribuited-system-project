@@ -116,4 +116,7 @@ public interface FeedsService {
 	@WebMethod
 	void createFeed(String user)  throws FeedsException;
 
+	@WebMethod
+	void receiveMessage( String user, Message msg) throws FeedsException;
+
 }

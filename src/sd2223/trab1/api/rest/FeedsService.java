@@ -15,7 +15,8 @@ public interface FeedsService {
 	String TIME = "time";
 	String DOMAIN = "domain";
 	String USERSUB = "userSub";
-	String SERVERSUB = "serversub";
+	String SERVERSUB = "sub/server";
+	String NEW = "new-msg";
 
 	String PATH = "/feeds";
 	/**
@@ -147,6 +148,11 @@ public interface FeedsService {
 	@POST
 	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
 	void subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
+
+	@POST
+	@Path(NEW + "/{" + USER +"}")
+	@Consumes(MediaType.APPLICATION_JSON)
+	void receiveMessage(@PathParam(USER) String user, Message msg);
 
 	// @DELETE
 	// @Path("/sub/{" + USER + "}/server/{" + DOMAIN + "}")

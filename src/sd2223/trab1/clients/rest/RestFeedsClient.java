@@ -73,4 +73,15 @@ public class RestFeedsClient extends RestClient implements Feeds {
             return super.toJavaResult(r, Void.class);
         });
     }
+
+    @Override
+    public Result<Void> receiveMessage(String user, Message msg) {
+        return super.reTry(() -> {
+            var r = target.path(FeedsService.NEW)
+                    .path(user)
+                    .request()
+                    .post(Entity.entity(msg, MediaType.APPLICATION_JSON_TYPE ));
+            return super.toJavaResult(r, Void.class);
+        });
+    }
 }

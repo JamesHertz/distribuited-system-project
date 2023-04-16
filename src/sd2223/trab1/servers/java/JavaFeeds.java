@@ -40,6 +40,8 @@ TODO:
     - add a method to unsubscribe to an user of another server
     - complete method check user
  */
+
+// TODO: think about TTL in Discovery
 public class JavaFeeds implements Feeds {
 
     private static final Logger Log = Logger.getLogger(JavaFeeds.class.getName());
@@ -91,6 +93,16 @@ public class JavaFeeds implements Feeds {
         msg.setDomain(domain);
         msg.setCreationTime(System.currentTimeMillis());
         messages.put(mid, msg);
+
+        synchronized (userInfo){
+            userInfo.getServerSubscribers()
+                    .stream()
+                    .forEach( domain -> {
+                        var feedServer = this.getFeedServer(domain);
+                        assert feedServer != null; // by now :)
+                        feedServer.receiveMessage(user, msg);
+                    });
+        }
         // TODO: send the message to all subscribers
         return Result.ok(mid);
     }
@@ -100,7 +112,7 @@ public class JavaFeeds implements Feeds {
         Log.info(String.format("remoteFromPersonalFeed: user=%d ; long=%d ; pwd=%s", user, mid, pwd));
         var address = Formatter.getUserAddress(user);
 
-        if (address == null || this.foreignDomain(address.domain()) || pwd == null) {
+        if (address == null || this.isForeignDomain(address.domain()) || pwd == null) {
             Log.info("Invalid user, domain or password.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -137,7 +149,7 @@ public class JavaFeeds implements Feeds {
     public Result<Void> createFeed(String user) {
         Log.info("createFeed: user=" + user);
         var address = Formatter.getUserAddress(user);
-        if (address == null || this.foreignDomain(address.domain())) {
+        if (address == null || this.isForeignDomain(address.domain())) {
             Log.info("Invalid user address.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -150,11 +162,29 @@ public class JavaFeeds implements Feeds {
     }
 
     @Override
+    public Result<Void> receiveMessage(String user, Message msg) {
+        Log.info(String.format("receiveMessage: user=%s ; msg=%s", user, msg));
+        var address = Formatter.getUserAddress(user);
+        if( msg == null || address == null || !this.isForeignDomain(address.domain()) ) { // is it worthed worrying about msg fields being null??0
+            Log.info("Bad request.");
+            return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        var userInfo = this.getUser(user);
+        synchronized (userInfo){
+            var msgs = userInfo.getUserMessages();
+            msgs.put(msg.getId(), msg);
+        }
+
+        return Result.ok();
+    }
+
+    @Override
     public Result<Message> getMessage(String user, long mid) {
         Log.info(String.format("getMessages: user=%s ; mid=%d", user, mid));
         var address = Formatter.getUserAddress(user);
 
-        if (address == null || this.foreignDomain(address.domain())) {
+        if (address == null || this.isForeignDomain(address.domain())) {
             Log.info("Bad address");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -183,7 +213,7 @@ public class JavaFeeds implements Feeds {
         Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
 
         var address = Formatter.getUserAddress(user);
-        if (address == null || this.foreignDomain( address.domain() )) {
+        if (address == null || this.isForeignDomain( address.domain() )) {
             Log.info("Invalid address");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -214,7 +244,7 @@ public class JavaFeeds implements Feeds {
         var localUserAddress = Formatter.getUserAddress(user);
         var subUserAddress   = Formatter.getUserAddress(userSub);
         if (localUserAddress == null || subUserAddress == null || user.equals(userSub)
-                || this.foreignDomain( localUserAddress.domain() ) || pwd == null) {
+                || this.isForeignDomain( localUserAddress.domain() ) || pwd == null) {
             Log.info("Bad address, domain or pwd.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -276,15 +306,55 @@ public class JavaFeeds implements Feeds {
 
     @Override
     public Result<Void> unSubscribeUser(String user, String userSub, String pwd) {
-        return Result.error(Result.ErrorCode.NOT_IMPLEMENTED);
+        Log.info(String.format("unSubscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
+        var userAddress = Formatter.getUserAddress(user);
+        var userSubAddress = Formatter.getUserAddress(userSub);
+
+        if(userAddress == null || userSubAddress == null
+                || this.isForeignDomain( userAddress.domain()) || pwd == null ){
+            Log.info("Bad request.");
+            return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        var res = checkPassword(user, pwd);
+        if(! res.isOK() ) {
+           Log.info("User doesn't exist or pwd is wrong.");
+           return Result.error( res.error() );
+        }
+
+        var userInfo = res.value();
+        synchronized (userInfo){
+            var subs = userInfo.getSubscriptions();
+            if( ! subs.remove(userSub) )
+                return Result.error( ErrorCode.NOT_FOUND );
+        }
+
+        var subUserInfo = this.getUser(userSub);
+
+        // TODO: what if it becomes null ???
+        synchronized (subUserInfo){
+            var subscribers = subUserInfo.getUsersSubscribers();
+            subscribers.remove(user);
+        }
+
+        // TODO: can this possibly go wrong??
+        if(subUserInfo instanceof RemoteUser
+             && ((RemoteUser) subUserInfo).isOver()) {
+            synchronized (allUserInfo){
+                allUserInfo.remove(userSub);
+            }
+        }
+        Log.info("unSubscribedUser successfully.");
+        return Result.ok();
     }
+
 
     @Override
     public Result<List<String>> listSubs(String user) {
         Log.info("listSubs: user=" + user);
         var address = Formatter.getUserAddress(user);
 
-        if (address == null || this.foreignDomain( address.domain() )) {
+        if (address == null || this.isForeignDomain( address.domain() )) {
             Log.info("Bad request");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -311,7 +381,7 @@ public class JavaFeeds implements Feeds {
     public Result<Void> subscribeServer(String domain, String user) { // and external server subscribing in one of my local user
         Log.info("Subscribe Server: domain=" + domain + " user=" + user);
         var address = Formatter.getUserAddress(user);
-        if (address == null || this.foreignDomain( address.domain() )) {
+        if (address == null || this.isForeignDomain( address.domain() )) {
             Log.info("Bad user address.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -323,7 +393,7 @@ public class JavaFeeds implements Feeds {
             return Result.error( ErrorCode.NOT_FOUND );
         }
 
-        if ( this.foreignDomain(domain) ) { // TODO: look at this
+        if ( this.isForeignDomain(domain) ) { // TODO: look at this
             synchronized (userInfo) {
                 var subs = userInfo.getServerSubscribers();
                 subs.add(domain);
@@ -334,21 +404,24 @@ public class JavaFeeds implements Feeds {
         return Result.ok();
     }
 
+    private Result<LocalUser> checkPassword(String user, String pwd){
+         var userInfo = this.getLocalUser(user);
+         if(userInfo == null) return Result.error( ErrorCode.NOT_FOUND );
+         var username = Formatter.getUserAddress(user).username();
+         var res = this.getMyUsersServer().verifyPassword(username, pwd);
+         return res.isOK() ? Result.ok(userInfo) : Result.error( res.error() );
+     }
+
   //   private Result<LocalUser> checkPassword(String user, String pwd){
   //       var localUser = this.getLocalUser(user);
   //       if(localUser == null) return Result.error(ErrorCode.NOT_FOUND);
   //       return this.getMyUsersServer().verifyPassword(user)
   //   }
 
-    private boolean foreignDomain(String domain) {
+    private boolean isForeignDomain(String domain) {
         return !this.domain.equals(domain);
     }
 
-    private RemoteUser getOrCreateRemoteUser(String userAddress) {
-        synchronized (userAddress) {
-            return (RemoteUser) allUserInfo.computeIfAbsent(userAddress, k -> new RemoteUser());
-        }
-    }
 
     private LocalUser getLocalUser(String userAddress) {
         synchronized (allUserInfo) {
@@ -363,6 +436,13 @@ public class JavaFeeds implements Feeds {
             return allUserInfo.get(userAddress);
         }
     }
+
+    // @SuppressWarnings("unchecked")
+    // private <T extends FeedUser> T doSomething(String userAddress){
+    //      synchronized (allUserInfo) {
+    //         return (T) allUserInfo.get(userAddress);
+    //     }
+    // }
 
     private Users getMyUsersServer() {
         var server = this.getUserServer(this.domain);
