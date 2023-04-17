@@ -117,6 +117,15 @@ public interface FeedsService {
 	void createFeed(String user)  throws FeedsException;
 
 	@WebMethod
-	void receiveMessage( String user, Message msg) throws FeedsException;
+	void createExtFeedMessage(String user, Message msg) throws FeedsException;
+
+	@WebMethod
+	void removeExtFeedMessage(String user, long mid) throws FeedsException;
+
+	@WebMethod
+	void removeFeed(String user)  throws FeedsException;
+
+	@WebMethod
+	void removeExtFeed(String user) throws FeedsException;
 
 }

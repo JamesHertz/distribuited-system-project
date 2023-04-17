@@ -60,8 +60,23 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public void receiveMessage(String user, Message msg) {
-        super.fromJavaResult( impl.receiveMessage(user, msg) );
+    public void createExtFeedMessage(String user, Message msg) {
+        super.fromJavaResult( impl.createExtFeedMessage(user, msg) );
+    }
+
+    @Override
+    public void removeExtFeedMessage(String user, long mid) {
+        super.fromJavaResult( impl.removeExtFeedMessage(user, mid) );
+    }
+
+    @Override
+    public void removeFeed(String user) {
+        super.fromJavaResult( impl.removeFeed(user) );
+    }
+
+    @Override
+    public void removeExtFeed(String user) {
+        super.fromJavaResult( impl.removeExtFeed(user) );
     }
 
 

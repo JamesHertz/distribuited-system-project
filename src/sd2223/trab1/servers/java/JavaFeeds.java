@@ -17,31 +17,7 @@ import java.util.stream.Stream;
 
 import static sd2223.trab1.api.java.Result.ErrorCode;
 
-// next test 3b :)
-/*
-how to update the messages of others peers?
-
-cache version:
-    When getMessage is ask we will ask for the respective feeds server for the messages
-    if the messages is not already on cache
-    Once we get the reply we store the result in a cache so the next time we can avoid some RTT
-
-post version:
-    When a user publish a message it's feed server will be responsible to announce to
-    all it's subscribers server about the changes.
-
- */
-/*
-TODO:
-    - change remove
-    - change create
-    - add a method to remove a user
-    - add a method to subscribe to an user of another server
-    - add a method to unsubscribe to an user of another server
-    - complete method check user
- */
-
-// TODO: think about TTL in Discovery
+// next test 3f
 public class JavaFeeds implements Feeds {
 
     private static final Logger Log = Logger.getLogger(JavaFeeds.class.getName());
@@ -87,29 +63,28 @@ public class JavaFeeds implements Feeds {
         }
 
 
-        var messages = userInfo.getUserMessages();
-        long mid = generator.nextID();
-        msg.setId(mid);
-        msg.setDomain(domain);
-        msg.setCreationTime(System.currentTimeMillis());
-        messages.put(mid, msg);
-
         synchronized (userInfo){
+            var messages = userInfo.getUserMessages();
+            long mid = generator.nextID();
+            msg.setId(mid);
+            msg.setDomain(domain);
+            msg.setCreationTime(System.currentTimeMillis());
+            messages.put(mid, msg);
+
             userInfo.getServerSubscribers()
-                    .stream()
                     .forEach( domain -> {
                         var feedServer = this.getFeedServer(domain);
                         assert feedServer != null; // by now :)
-                        feedServer.receiveMessage(user, msg);
+                        feedServer.createExtFeedMessage(user, msg);
                     });
+            return Result.ok(mid);
         }
         // TODO: send the message to all subscribers
-        return Result.ok(mid);
     }
 
     @Override
     public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
-        Log.info(String.format("remoteFromPersonalFeed: user=%d ; long=%d ; pwd=%s", user, mid, pwd));
+        Log.info(String.format("remoteFromPersonalFeed: user=%s ; long=%d ; pwd=%s", user, mid, pwd));
         var address = Formatter.getUserAddress(user);
 
         if (address == null || this.isForeignDomain(address.domain()) || pwd == null) {
@@ -117,27 +92,24 @@ public class JavaFeeds implements Feeds {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
+        Result<LocalUser> res = this.checkPassword(user, pwd);
+        if(! res.isOK()) {
+            Log.info("User doesn't exist of credentials are wrong.");
+            return Result.error( res.error() );
+        }
 
-        LocalUser userInfo = this.getLocalUser(user);
+        var userInfo = res.value();
+        synchronized (userInfo){
+            var msgs = userInfo.getUserMessages();
+            if(msgs.remove(mid) != null){
+                userInfo.getServerSubscribers()
+                        .forEach( domain -> {
+                            var server = this.getFeedServer(domain);
+                            assert server != null;
+                            server.removeExtFeedMessage(user, mid);
+                        });
 
-        if (userInfo != null) {
-            var usersServer = this.getMyUsersServer();
-
-            // if (usersServer == null) {
-            //     Log.info("Unable to connect user server.");
-            //     return Result.error(ErrorCode.TIMEOUT);
-            // }
-
-            Result<Void> err;
-            if (!(err = usersServer.verifyPassword(address.username(), pwd)).isOK()) {
-                Log.info("Problem checking credentials.");
-                return Result.error(err.error());
-            }
-
-            var messages = userInfo.getUserMessages();
-            if (messages.remove(mid) != null) {
-                return Result.error(ErrorCode.NO_CONTENT);
-                // TODO propagate message :)
+                return Result.ok();
             }
         }
 
@@ -161,27 +133,10 @@ public class JavaFeeds implements Feeds {
         return Result.ok();
     }
 
-    @Override
-    public Result<Void> receiveMessage(String user, Message msg) {
-        Log.info(String.format("receiveMessage: user=%s ; msg=%s", user, msg));
-        var address = Formatter.getUserAddress(user);
-        if( msg == null || address == null || !this.isForeignDomain(address.domain()) ) { // is it worthed worrying about msg fields being null??0
-            Log.info("Bad request.");
-            return Result.error( ErrorCode.BAD_REQUEST );
-        }
-
-        var userInfo = this.getUser(user);
-        synchronized (userInfo){
-            var msgs = userInfo.getUserMessages();
-            msgs.put(msg.getId(), msg);
-        }
-
-        return Result.ok();
-    }
 
     @Override
     public Result<Message> getMessage(String user, long mid) {
-        Log.info(String.format("getMessages: user=%s ; mid=%d", user, mid));
+        Log.info(String.format("getMessage: user=%s ; mid=%d", user, mid));
         var address = Formatter.getUserAddress(user);
 
         if (address == null || this.isForeignDomain(address.domain())) {
@@ -342,6 +297,7 @@ public class JavaFeeds implements Feeds {
              && ((RemoteUser) subUserInfo).isOver()) {
             synchronized (allUserInfo){
                 allUserInfo.remove(userSub);
+                // TODO: send a message to the respective feed server
             }
         }
         Log.info("unSubscribedUser successfully.");
@@ -401,6 +357,107 @@ public class JavaFeeds implements Feeds {
             }
         }
 
+        return Result.ok();
+    }
+
+    @Override
+    public Result<Void> createExtFeedMessage(String user, Message msg) {
+        Log.info(String.format("receiveMessage: user=%s ; msg=%s", user, msg));
+        var address = Formatter.getUserAddress(user);
+        if( msg == null || address == null || !this.isForeignDomain(address.domain()) ) { // is it worthed worrying about msg fields being null??0
+            Log.info("Bad request.");
+            return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        var userInfo = this.getUser(user);
+        synchronized (userInfo){
+            var msgs = userInfo.getUserMessages();
+            msgs.put(msg.getId(), msg);
+        }
+
+        return Result.ok();
+    }
+
+    @Override
+    public Result<Void> removeExtFeedMessage(String user, long mid) {
+        Log.info(String.format("removeFeedMessage: user=%s ; mid=%d", user, mid));
+        var address = Formatter.getUserAddress(user);
+        if(address == null || !this.isForeignDomain( address.domain() )){
+            Log.info("Bad request.");
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        var userInfo = this.getUser(user);
+
+        if( userInfo == null ){
+            Log.info("User or message not found.");
+            return Result.error(ErrorCode.NOT_FOUND);
+        }
+
+        synchronized (userInfo){
+            var msgs = userInfo.getUserMessages();
+            msgs.remove(mid);
+        }
+        return Result.ok();
+    }
+
+
+    @Override
+    public Result<Void> removeFeed(String user) {
+        Log.info("removeFeed: user=" + user);
+        var address = Formatter.getUserAddress(user);
+        if(address == null || this.isForeignDomain( address.domain() ) ){
+            Log.info("Bad address.");
+            return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        return doRemove(user);
+    }
+
+    @Override
+    public Result<Void> removeExtFeed(String user) {
+        Log.info("removeFeed: user=" + user);
+        var address = Formatter.getUserAddress(user);
+        if(address == null || !this.isForeignDomain( address.domain() ) ){
+            Log.info("Bad address.");
+            return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        return doRemove(user);
+    }
+
+
+
+    private Result<Void> doRemove(String user){
+        var userInfo = getUser(user);
+        if (userInfo == null) {
+            Log.info("User not found.");
+            return Result.error( ErrorCode.NOT_FOUND );
+        }
+
+        synchronized (userInfo){
+            userInfo.getUsersSubscribers()
+                    .forEach(addr -> {
+                        LocalUser local = this.getLocalUser(addr);
+                        assert local != null;
+                        synchronized (local){
+                            var subs = local.getSubscriptions();
+                            subs.remove(user);
+                        }
+                    });
+            if(userInfo instanceof LocalUser){
+                ((LocalUser) userInfo)
+                        .getServerSubscribers()
+                        .forEach( domain -> {
+                            var server = this.getFeedServer(domain);
+                            assert server != null;
+                            server.removeExtFeed(user);
+                        });
+            }
+        }
+        synchronized (allUserInfo){
+            allUserInfo.remove(user);
+        }
         return Result.ok();
     }
 

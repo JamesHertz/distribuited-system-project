@@ -24,9 +24,11 @@ public interface Feeds {
 
     Result<Void> createFeed(String user);
 
-    Result<Void> receiveMessage(String user, Message msg );
+    Result<Void> createExtFeedMessage(String user, Message msg );
 
+    Result<Void> removeExtFeedMessage(String user , long mid );
+
+    Result<Void> removeFeed ( String user );
+    Result<Void> removeExtFeed ( String user );
     // Result<Void> unsubscribeServer(String domain, String user);
-    // Result<Void> removeFeedMessage ( String user , long mid );
-    // Result<Void> removeFeed ( String user ); // think about this
 }

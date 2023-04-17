@@ -75,13 +75,48 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<Void> receiveMessage(String user, Message msg) {
+    public Result<Void> createExtFeedMessage(String user, Message msg) {
         return super.reTry(() -> {
-            var r = target.path(FeedsService.NEW)
+            var r = target.path(FeedsService.EXTERNAL)
                     .path(user)
                     .request()
                     .post(Entity.entity(msg, MediaType.APPLICATION_JSON_TYPE ));
             return super.toJavaResult(r, Void.class);
+        });
+    }
+
+    @Override
+    public Result<Void> removeExtFeedMessage(String user, long mid) {
+        return super.reTry(() -> {
+            var res = target.path(FeedsService.EXTERNAL)
+                    .path(user)
+                    .path(String.valueOf(mid))
+                    .request()
+                    .delete();
+            return super.toJavaResult(res, Void.class);
+        });
+    }
+
+    @Override
+    public Result<Void> removeFeed(String user) {
+        return super.reTry(() -> {
+            var res = target.path(user)
+                    .request()
+                    .delete();
+
+            return super.toJavaResult(res, Void.class);
+        });
+    }
+
+    @Override
+    public Result<Void> removeExtFeed(String user) {
+        return super.reTry(() -> {
+            var res = target.path(FeedsService.EXTERNAL)
+                    .path(user)
+                    .request()
+                    .delete();
+
+            return super.toJavaResult(res, Void.class);
         });
     }
 }

@@ -72,7 +72,22 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     }
 
     @Override
-    public Result<Void> receiveMessage(String user, Message msg) {
-        return super.reTry( () -> super.toJavaResult( () -> stub().receiveMessage(user, msg) ));
+    public Result<Void> createExtFeedMessage(String user, Message msg) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().createExtFeedMessage(user, msg) ));
+    }
+
+    @Override
+    public Result<Void> removeExtFeedMessage(String user, long mid) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().removeExtFeedMessage(user, mid) ));
+    }
+
+    @Override
+    public Result<Void> removeFeed(String user) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().removeFeed(user) ));
+    }
+
+    @Override
+    public Result<Void> removeExtFeed(String user) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().removeExtFeed(user) ));
     }
 }

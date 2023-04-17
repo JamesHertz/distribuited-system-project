@@ -16,7 +16,7 @@ public interface FeedsService {
 	String DOMAIN = "domain";
 	String USERSUB = "userSub";
 	String SERVERSUB = "sub/server";
-	String NEW = "new-msg";
+	String EXTERNAL = "external";
 
 	String PATH = "/feeds";
 	/**
@@ -24,7 +24,7 @@ public interface FeedsService {
 	 * A message should be identified before publish it, by assigning an ID.
 	 * A user must contact the server of her domain directly (i.e., this operation should not be
 	 * propagated to other domain)
-	 *
+
 	 * @param user user of the operation (format user@domain)
 	 * @param msg the message object to be posted to the server
 	 * @param pwd password of the user sending the message
@@ -150,9 +150,23 @@ public interface FeedsService {
 	void subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
 
 	@POST
-	@Path(NEW + "/{" + USER +"}")
+	@Path(EXTERNAL + "/{" + USER +"}")
 	@Consumes(MediaType.APPLICATION_JSON)
-	void receiveMessage(@PathParam(USER) String user, Message msg);
+	void createExtFeedMessage(@PathParam(USER) String user, Message msg);
+
+	@DELETE
+	@Path(EXTERNAL + "/{" + USER +"}/{" + MID + "}")
+	void removeExtFeedMessage(@PathParam(USER) String user, @PathParam(MID) long mid);
+	// feeds/external/<user-id>
+	// external/<user-id>/mid
+
+	@DELETE
+	@Path("/{" + USER + "}")
+	void removeFeed(@PathParam(USER) String user);
+
+	@DELETE
+	@Path(EXTERNAL + "/{" + USER + "}")
+	void removeExtFeed(@PathParam(USER) String user);
 
 	// @DELETE
 	// @Path("/sub/{" + USER + "}/server/{" + DOMAIN + "}")

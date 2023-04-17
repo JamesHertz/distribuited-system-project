@@ -159,6 +159,8 @@ public class JavaUsers implements Users {
 			users.remove(name);
 		}
 
+		var server = this.getMyFeedsServer();
+		server.removeFeed( Formatter.makeUserAddress(name, this.domain) );
 		return Result.ok( user );
 	}
 
