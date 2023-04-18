@@ -12,6 +12,7 @@ import sd2223.trab1.utils.IDGenerator;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -65,7 +66,7 @@ public class JavaFeeds implements Feeds {
                         assert feedServer != null; // by now :)
                         var e = feedServer.createExtFeedMessage(user, msg);
                     });
-            Log.info(String.format("postMessage: message %d created", mid));
+            Log.info(String.format("Message %d created", mid));
             return Result.ok(mid);
         }
     }
@@ -97,6 +98,7 @@ public class JavaFeeds implements Feeds {
                             server.removeExtFeedMessage(user, mid);
                         });
 
+                Log.info("Message " + mid + " removed.");
                 return Result.ok();
             }
         }
@@ -118,6 +120,7 @@ public class JavaFeeds implements Feeds {
             allUserInfo.putIfAbsent(user, new LocalUser());
         }
 
+        Log.info("Feed " + user + " created.");
         return Result.ok();
     }
 
@@ -127,9 +130,16 @@ public class JavaFeeds implements Feeds {
         Log.info(String.format("getMessage: user=%s ; mid=%d", user, mid));
         var address = Formatter.getUserAddress(user);
 
-        if (address == null || this.isForeignDomain(address.domain())) {
+        if (address == null /*|| this.isForeignDomain(address.domain())*/) {
             Log.info("Bad address");
             return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        if(this.isForeignDomain( address.domain() )){
+            return this.forwardRequest(
+                    address.domain(),
+                    server -> server.getMessage(user, mid)
+            );
         }
 
         var userInfo = this.getLocalUser(user);
@@ -142,7 +152,10 @@ public class JavaFeeds implements Feeds {
                         .findFirst();
             }
 
-            if(res.isPresent()) return Result.ok(res.get());
+            if(res.isPresent()) {
+                Log.info("Message " + mid + " found.");
+                return Result.ok(res.get());
+            }
         }
 
         Log.info("Messages not found.");
@@ -154,9 +167,16 @@ public class JavaFeeds implements Feeds {
         Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
 
         var address = Formatter.getUserAddress(user);
-        if (address == null || this.isForeignDomain( address.domain() )) {
+        if (address == null /*|| this.isForeignDomain( address.domain() )*/) {
             Log.info("Invalid address");
             return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        if(this.isForeignDomain( address.domain() )) {
+            return this.forwardRequest(
+                    address.domain(),
+                    server -> server.getMessages(user, time)
+            );
         }
 
         var userInfo = this.getLocalUser(user);
@@ -166,7 +186,7 @@ public class JavaFeeds implements Feeds {
         }
 
         synchronized (userInfo) {
-            Log.info("subs: " + userInfo.getSubscriptions());
+            Log.info("Messages found.");
             return Result.ok(
                     userInfo.getAllFeedMessages().map(m -> m.values().stream())
                             .reduce(Stream.empty(), Stream::concat)
@@ -201,7 +221,7 @@ public class JavaFeeds implements Feeds {
             // if we weren't able to contact the subUser feeds server of the subUser
             // domain is our domain ( which by now means it doesn't exist )
             if (feedsServer == null) {
-                Log.info("SubUser doesn't exist or unable to contact with it's feeds server.");
+                Log.info("subUser doesn't exist or unable to contact with it's feeds server.");
                 return Result.error( ErrorCode.NOT_FOUND );
             }
 
@@ -226,6 +246,7 @@ public class JavaFeeds implements Feeds {
             subsUsers.add(user);
         }
 
+        Log.info("subscription performed");
         return Result.error(ErrorCode.NO_CONTENT);
     }
 
@@ -256,27 +277,10 @@ public class JavaFeeds implements Feeds {
         }
 
         this.removeFromSubscribers(user, userSub);
-        Log.info("unSubscribedUser successfully.");
+        Log.info("unsubscription performed");
         return Result.ok();
     }
 
-    private void removeFromSubscribers(String user, String userSub){
-        var userInfo = this.getUser(userSub);
-        assert  userInfo != null;
-        synchronized (userInfo) {
-            var subs = userInfo.getUsersSubscribers();
-            subs.remove(user);
-        }
-        if(userInfo instanceof RemoteUser &&
-                ((RemoteUser) userInfo).isOver()){
-            synchronized (allUserInfo){
-                allUserInfo.remove(userSub);
-            }
-            var server = this.getFeedServer( Formatter.getUserAddress(userSub).domain() );
-            assert server != null;
-            server.unsubscribeServer(this.domain, userSub);
-        }
-    }
 
     @Override
     public Result<List<String>> listSubs(String user) {
@@ -296,13 +300,13 @@ public class JavaFeeds implements Feeds {
         }
 
         synchronized (userInfo) {
+            Log.info("Listing subscriptions.");
             return Result.ok(
                     userInfo.getSubscriptions()
                             .stream()
                             .toList()
             );
         }
-
 
     }
 
@@ -326,6 +330,7 @@ public class JavaFeeds implements Feeds {
             var subs = userInfo.getServerSubscribers();
             subs.add(domain);
 
+            Log.info("Subscription performed.");
             return Result.ok(
                     userInfo.getUserMessages()
                             .values()
@@ -350,6 +355,7 @@ public class JavaFeeds implements Feeds {
             msgs.put(msg.getId(), msg);
         }
 
+        Log.info("Message "  + msg.getId() + " created.");
         return Result.ok();
     }
 
@@ -373,6 +379,8 @@ public class JavaFeeds implements Feeds {
             var msgs = userInfo.getUserMessages();
             msgs.remove(mid);
         }
+
+        Log.info("Message "  + mid + " removed**.");
         return Result.ok();
     }
 
@@ -424,6 +432,33 @@ public class JavaFeeds implements Feeds {
         return Result.error( ErrorCode.NOT_FOUND );
     }
 
+    private void removeFromSubscribers(String user, String userSub){
+        var userInfo = this.getUser(userSub);
+        assert  userInfo != null;
+        synchronized (userInfo) {
+            var subs = userInfo.getUsersSubscribers();
+            subs.remove(user);
+        }
+        if(userInfo instanceof RemoteUser &&
+                ((RemoteUser) userInfo).isOver()){
+            synchronized (allUserInfo){
+                allUserInfo.remove(userSub);
+            }
+            var server = this.getFeedServer( Formatter.getUserAddress(userSub).domain() );
+            assert server != null;
+            server.unsubscribeServer(this.domain, userSub);
+        }
+    }
+
+    private <T> Result<T> forwardRequest(String domain, Function<Feeds, Result<T>> request){
+        var server = this.getFeedServer(domain);
+        if(server == null){
+            Log.info("forwardRequest: server not found.");
+            return Result.error( ErrorCode.NOT_FOUND );
+        }
+        Log.info("Message forwarded.");
+        return request.apply(server);
+    }
 
     private Result<Void> doRemove(String user){
         var userInfo = getUser(user);
@@ -459,6 +494,7 @@ public class JavaFeeds implements Feeds {
         synchronized (allUserInfo){
             allUserInfo.remove(user);
         }
+        Log.info("Feed " + user + " removed.");
         return Result.ok();
     }
 

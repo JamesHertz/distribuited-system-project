@@ -1,10 +1,13 @@
 package sd2223.trab1.clients.rest;
 
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
+import org.glassfish.jersey.client.ClientConfig;
 import sd2223.trab1.api.Message;
 import sd2223.trab1.api.java.Feeds;
 import sd2223.trab1.api.java.Result;
@@ -33,12 +36,23 @@ public class RestFeedsClient extends RestClient implements Feeds {
 
     @Override
     public Result<Message> getMessage(String user, long mid) {
-        throw new RuntimeException("Not Implemented...");
+        return super.reTry(() -> {
+            var r = target.path(user).path(String.valueOf(mid))
+                    .request()
+                    .get();
+            return super.toJavaResult(r, Message.class);
+        });
     }
 
     @Override
     public Result<List<Message>> getMessages(String user, long time) {
-        throw new RuntimeException("Not Implemented...");
+        return super.reTry(() -> {
+            var r = target.path(user)
+                    .queryParam(FeedsService.TIME, time)
+                    .request()
+                    .get();
+            return super.toJavaResult(r, new GenericType<>(){});
+        });
     }
 
     @Override
@@ -63,7 +77,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
                     .path(domain).path(user)
                     .request()
                     .post(Entity.json(null));
-            return super.toJavaResult(r, new GenericType<List<Message>>(){});
+            return super.toJavaResult(r, new GenericType<>(){});
         });
     }
 

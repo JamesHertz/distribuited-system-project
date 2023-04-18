@@ -38,12 +38,12 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
 
     @Override
     public Result<Message> getMessage(String user, long mid) {
-        throw new RuntimeException("Not Implemented...");
+        return super.reTry( () -> super.toJavaResult( () -> stub().getMessage(user, mid) ));
     }
 
     @Override
     public Result<List<Message>> getMessages(String user, long time) {
-        throw new RuntimeException("Not Implemented...");
+        return super.reTry( () -> super.toJavaResult( () -> stub().getMessages(user, time) ));
     }
 
     @Override
