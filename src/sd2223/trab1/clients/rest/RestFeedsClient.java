@@ -82,7 +82,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
     public Result<Void> createFeed(String user) {
         return super.reTry( () -> {
             var r = target.request()
-                    .post(Entity.entity(user, MediaType.TEXT_PLAIN));
+                    .post(Entity.entity(user, MediaType.APPLICATION_JSON_TYPE));
             return super.toJavaResult(r, Void.class);
         });
     }
