@@ -30,5 +30,6 @@ public interface Feeds {
 
     Result<Void> removeFeed ( String user );
     Result<Void> removeExtFeed ( String user );
-    // Result<Void> unsubscribeServer(String domain, String user);
+
+    Result<Void> unsubscribeServer(String domain, String user);
 }

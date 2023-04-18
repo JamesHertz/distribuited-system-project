@@ -66,6 +66,17 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
+    public Result<Void> unsubscribeServer(String domain, String user) {
+        return super.reTry( () -> {
+            var r = target.path(FeedsService.SERVERSUB)
+                    .path(domain).path(user)
+                    .request()
+                    .delete();
+            return super.toJavaResult(r, Void.class);
+        });
+    }
+
+    @Override
     public Result<Void> createFeed(String user) {
         return super.reTry( () -> {
             var r = target.request()
@@ -119,4 +130,5 @@ public class RestFeedsClient extends RestClient implements Feeds {
             return super.toJavaResult(res, Void.class);
         });
     }
+
 }

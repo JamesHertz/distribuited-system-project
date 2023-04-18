@@ -168,7 +168,7 @@ public interface FeedsService {
 	@Path(EXTERNAL + "/{" + USER + "}")
 	void removeExtFeed(@PathParam(USER) String user);
 
-	// @DELETE
-	// @Path("/sub/{" + USER + "}/server/{" + DOMAIN + "}")
-	// void unsubscribeServer(@PathParam(USER) String user, @PathParam(DOMAIN) String domain);
+	@DELETE
+	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
+	void unsubscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
 }

@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 
 import static sd2223.trab1.api.java.Result.ErrorCode;
 
-// next test 3f
+// next test 4a
 public class JavaFeeds implements Feeds {
 
     private static final Logger Log = Logger.getLogger(JavaFeeds.class.getName());
@@ -284,26 +284,28 @@ public class JavaFeeds implements Feeds {
                 return Result.error( ErrorCode.NOT_FOUND );
         }
 
-        var subUserInfo = this.getUser(userSub);
-
-        // TODO: what if it becomes null ???
-        synchronized (subUserInfo){
-            var subscribers = subUserInfo.getUsersSubscribers();
-            subscribers.remove(user);
-        }
-
-        // TODO: can this possibly go wrong??
-        if(subUserInfo instanceof RemoteUser
-             && ((RemoteUser) subUserInfo).isOver()) {
-            synchronized (allUserInfo){
-                allUserInfo.remove(userSub);
-                // TODO: send a message to the respective feed server
-            }
-        }
+        this.removeFromSubscribers(user, userSub);
         Log.info("unSubscribedUser successfully.");
         return Result.ok();
     }
 
+    private void removeFromSubscribers(String user, String userSub){
+        var userInfo = this.getUser(userSub);
+        assert  userInfo != null;
+        synchronized (userInfo) {
+            var subs = userInfo.getUsersSubscribers();
+            subs.remove(user);
+        }
+        if(userInfo instanceof RemoteUser &&
+                ((RemoteUser) userInfo).isOver()){
+            synchronized (allUserInfo){
+                allUserInfo.remove(userSub);
+            }
+            var server = this.getFeedServer( Formatter.getUserAddress(userSub).domain() );
+            assert server != null;
+            server.unsubscribeServer(this.domain, userSub);
+        }
+    }
 
     @Override
     public Result<List<String>> listSubs(String user) {
@@ -335,7 +337,7 @@ public class JavaFeeds implements Feeds {
 
     @Override
     public Result<Void> subscribeServer(String domain, String user) { // and external server subscribing in one of my local user
-        Log.info("Subscribe Server: domain=" + domain + " user=" + user);
+        Log.info("subscribeServer: domain=" + domain + " user=" + user);
         var address = Formatter.getUserAddress(user);
         if (address == null || this.isForeignDomain( address.domain() )) {
             Log.info("Bad user address.");
@@ -353,7 +355,6 @@ public class JavaFeeds implements Feeds {
             synchronized (userInfo) {
                 var subs = userInfo.getServerSubscribers();
                 subs.add(domain);
-                // Log.info("servers: " + subs.toString());
             }
         }
 
@@ -426,6 +427,28 @@ public class JavaFeeds implements Feeds {
         return doRemove(user);
     }
 
+    @Override
+    public Result<Void> unsubscribeServer(String domain, String user) {
+        Log.info(String.format("unsubscribeServer: domain=%s ; user=%s", domain, user));
+        var address = Formatter.getUserAddress(user);
+
+        if(address == null || this.isForeignDomain( address.domain() )){
+            Log.info("Bad address.");
+            return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        LocalUser userInfo = this.getLocalUser(user);
+        if(userInfo != null ){
+            synchronized (userInfo){
+                var serverSubs = userInfo.getServerSubscribers();
+                if (serverSubs.remove(domain)) return Result.ok();
+                Log.info("serverSubs: " + serverSubs);
+            }
+        }
+
+        Log.info("User or subscription not found.");
+        return Result.error( ErrorCode.NOT_FOUND );
+    }
 
 
     private Result<Void> doRemove(String user){
@@ -446,13 +469,17 @@ public class JavaFeeds implements Feeds {
                         }
                     });
             if(userInfo instanceof LocalUser){
-                ((LocalUser) userInfo)
-                        .getServerSubscribers()
-                        .forEach( domain -> {
-                            var server = this.getFeedServer(domain);
-                            assert server != null;
-                            server.removeExtFeed(user);
-                        });
+                LocalUser aux = ((LocalUser) userInfo);
+                aux.getServerSubscribers()
+                   .forEach( domain -> {
+                       var server = this.getFeedServer(domain);
+                       assert server != null;
+                       server.removeExtFeed(user);
+                   });
+                aux.getSubscriptions()
+                    .forEach(subUser -> {
+                        this.removeFromSubscribers(user, subUser);
+                    });
             }
         }
         synchronized (allUserInfo){
@@ -469,23 +496,14 @@ public class JavaFeeds implements Feeds {
          return res.isOK() ? Result.ok(userInfo) : Result.error( res.error() );
      }
 
-  //   private Result<LocalUser> checkPassword(String user, String pwd){
-  //       var localUser = this.getLocalUser(user);
-  //       if(localUser == null) return Result.error(ErrorCode.NOT_FOUND);
-  //       return this.getMyUsersServer().verifyPassword(user)
-  //   }
-
     private boolean isForeignDomain(String domain) {
         return !this.domain.equals(domain);
     }
-
 
     private LocalUser getLocalUser(String userAddress) {
         synchronized (allUserInfo) {
             return (LocalUser) allUserInfo.get(userAddress);
         }
-        // var user = allUserInfo.get(userAddress);
-        // return user instanceof LocalUser ? (LocalUser) user : null;
     }
 
     private FeedUser getUser(String userAddress) {
@@ -493,13 +511,6 @@ public class JavaFeeds implements Feeds {
             return allUserInfo.get(userAddress);
         }
     }
-
-    // @SuppressWarnings("unchecked")
-    // private <T extends FeedUser> T doSomething(String userAddress){
-    //      synchronized (allUserInfo) {
-    //         return (T) allUserInfo.get(userAddress);
-    //     }
-    // }
 
     private Users getMyUsersServer() {
         var server = this.getUserServer(this.domain);
@@ -522,17 +533,6 @@ public class JavaFeeds implements Feeds {
         if (serverURI.length == 0) return null;
         return ClientFactory.getFeedsClient(serverURI[0]);
     }
-
-    /*
-        iago@fct
-        james@fct
-        inscreve( iago@fct, james@fct )
-
-        user(iago@fct).addSubscription( james@fct )
-        delete(james@fct)
-        user(iago@fct).deleteSubscription( james@fct )
-     */
-
 
     private static abstract class FeedUser {
         private final Map<Long, Message> userMessages;
@@ -581,7 +581,7 @@ public class JavaFeeds implements Feeds {
     }
 
     private class RemoteUser extends FeedUser {
-        public boolean isOver(){
+        public synchronized boolean isOver(){
             return this.getUsersSubscribers().isEmpty();
         }
 

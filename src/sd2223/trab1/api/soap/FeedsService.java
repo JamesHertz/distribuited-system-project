@@ -107,6 +107,8 @@ public interface FeedsService {
 	@WebMethod
 	void subscribeSever(String domain, String user) throws FeedsException;
 
+	@WebMethod
+	void unsubscribeSever(String domain, String user) throws FeedsException;
 
 	/**
 	 * Creates a feed for a user in the feeds server.

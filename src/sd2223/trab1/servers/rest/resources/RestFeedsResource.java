@@ -79,5 +79,10 @@ public class RestFeedsResource extends RestResource implements FeedsService {
         super.fromJavaResult( impl.removeExtFeed(user) );
     }
 
+    @Override
+    public void unsubscribeServer(String domain, String user) {
+        super.fromJavaResult( impl.unsubscribeServer(domain, user) );
+    }
+
 
 }

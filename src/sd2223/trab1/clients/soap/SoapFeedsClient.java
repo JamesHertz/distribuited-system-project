@@ -90,4 +90,9 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     public Result<Void> removeExtFeed(String user) {
         return super.reTry( () -> super.toJavaResult( () -> stub().removeExtFeed(user) ));
     }
+
+    @Override
+    public Result<Void> unsubscribeServer(String domain, String user) {
+         return super.reTry( () -> super.toJavaResult( () -> stub().unsubscribeSever(domain, user) ));
+    }
 }
