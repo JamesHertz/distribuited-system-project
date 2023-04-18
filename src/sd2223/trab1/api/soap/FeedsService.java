@@ -105,10 +105,10 @@ public interface FeedsService {
 	List<String> listSubs(String user) throws FeedsException;
 
 	@WebMethod
-	void subscribeSever(String domain, String user) throws FeedsException;
+	List<Message>subscribeSever(String domain, String user) throws FeedsException;
 
 	@WebMethod
-	void unsubscribeSever(String domain, String user) throws FeedsException;
+	 void unsubscribeSever(String domain, String user) throws FeedsException;
 
 	/**
 	 * Creates a feed for a user in the feeds server.

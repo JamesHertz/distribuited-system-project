@@ -55,8 +55,8 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public void subscribeServer(String domain, String user) {
-        super.fromJavaResult( impl.subscribeServer(domain, user) );
+    public List<Message> subscribeServer(String domain, String user) {
+        return super.fromJavaResult( impl.subscribeServer(domain, user) );
     }
 
     @Override

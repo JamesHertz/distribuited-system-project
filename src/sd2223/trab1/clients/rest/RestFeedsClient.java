@@ -2,6 +2,8 @@ package sd2223.trab1.clients.rest;
 
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericEntity;
+import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import sd2223.trab1.api.Message;
 import sd2223.trab1.api.java.Feeds;
@@ -55,13 +57,13 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<Void> subscribeServer(String domain, String user) {
+    public Result<List<Message>> subscribeServer(String domain, String user) {
         return super.reTry( () -> {
             var r = target.path( FeedsService.SERVERSUB)
                     .path(domain).path(user)
                     .request()
                     .post(Entity.json(null));
-            return super.toJavaResult(r, Void.class);
+            return super.toJavaResult(r, new GenericType<List<Message>>(){});
         });
     }
 

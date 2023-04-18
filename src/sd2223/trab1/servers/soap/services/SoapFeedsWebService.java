@@ -53,8 +53,8 @@ public class SoapFeedsWebService extends SoapWebService<FeedsException> implemen
     }
 
     @Override
-    public void subscribeSever(String domain, String user) throws FeedsException {
-        super.fromJavaResult( impl.subscribeServer(domain, user) );
+    public List<Message> subscribeSever(String domain, String user) throws FeedsException {
+        return super.fromJavaResult( impl.subscribeServer(domain, user) );
     }
 
     @Override

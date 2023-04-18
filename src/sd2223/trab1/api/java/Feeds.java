@@ -20,7 +20,7 @@ public interface Feeds {
 
     Result<List<String>> listSubs(String user);
 
-    Result<Void> subscribeServer(String domain, String user);
+    Result<List<Message>> subscribeServer(String domain, String user);
 
     Result<Void> createFeed(String user);
 

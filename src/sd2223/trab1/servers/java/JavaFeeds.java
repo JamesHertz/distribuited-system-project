@@ -40,29 +40,17 @@ public class JavaFeeds implements Feeds {
 
         if (address == null || !this.domain.equals(address.domain())
                 || pwd == null || msg.getDomain() == null || msg.getUser() == null) {
+            Log.info("Bad request.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
-        LocalUser userInfo = this.getLocalUser(user);
-        if (userInfo == null) {
-            Log.info("User feed not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-
-        Users usersServer = getMyUsersServer();
-        // if (usersServer == null) {
-        //     Log.info("Unable to contact the user server.");
-        //     return Result.error(ErrorCode.TIMEOUT);
-        // }
-
-        // optmize later :)
-        Result<Void> err;
-        if (!(err = usersServer.verifyPassword(address.username(), pwd)).isOK()) {
-            System.out.println("Problems checking user.");
+        Result<LocalUser> err;
+        if (!(err = this.checkPassword(user, pwd)).isOK()) {
+            Log.info("User doesn't exist of credentials are wrong.");
             return Result.error(err.error());
         }
 
-
+        var userInfo = err.value();
         synchronized (userInfo){
             var messages = userInfo.getUserMessages();
             long mid = generator.nextID();
@@ -75,11 +63,11 @@ public class JavaFeeds implements Feeds {
                     .forEach( domain -> {
                         var feedServer = this.getFeedServer(domain);
                         assert feedServer != null; // by now :)
-                        feedServer.createExtFeedMessage(user, msg);
+                        var e = feedServer.createExtFeedMessage(user, msg);
                     });
+            Log.info(String.format("postMessage: message %d created", mid));
             return Result.ok(mid);
         }
-        // TODO: send the message to all subscribers
     }
 
     @Override
@@ -146,8 +134,6 @@ public class JavaFeeds implements Feeds {
 
         var userInfo = this.getLocalUser(user);
         if (userInfo != null) {
-
-            // TODO: put some prints to help you understand
             Optional<Message> res;
             synchronized (userInfo) {
                 res = userInfo.getAllFeedMessages()
@@ -179,8 +165,8 @@ public class JavaFeeds implements Feeds {
             return Result.error(ErrorCode.NOT_FOUND);
         }
 
-        // reminder delete user last :)
         synchronized (userInfo) {
+            Log.info("subs: " + userInfo.getSubscriptions());
             return Result.ok(
                     userInfo.getAllFeedMessages().map(m -> m.values().stream())
                             .reduce(Stream.empty(), Stream::concat)
@@ -188,14 +174,12 @@ public class JavaFeeds implements Feeds {
                             .toList()
             );
         }
-
     }
 
     @Override
     public Result<Void> subscribeUser(String user, String userSub, String pwd) {
         Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
 
-        // make this thing work :)
         var localUserAddress = Formatter.getUserAddress(user);
         var subUserAddress   = Formatter.getUserAddress(userSub);
         if (localUserAddress == null || subUserAddress == null || user.equals(userSub)
@@ -204,25 +188,13 @@ public class JavaFeeds implements Feeds {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
-        var localUser = this.getLocalUser( user );
-
-        if(localUser == null){
-            Log.info("User not found :(");
-            return Result.error( ErrorCode.NOT_FOUND );
-        }
-
-        var usersServer = this.getMyUsersServer();
-        // if (usersServer == null) {
-        //     Log.info("Problems getting to user server.");
-        //     return Result.error(ErrorCode.TIMEOUT);
-        // }
-
-        Result<Void> err;
-        if (!(err = usersServer.verifyPassword(localUserAddress.username(), pwd)).isOK()) {
+        Result<LocalUser> err;
+        if (!(err = this.checkPassword(user, pwd)).isOK()) {
             Log.info("Problems checking user credentials.");
             return Result.error(err.error());
         }
 
+        var localUser = err.value();
         var subUserInfo = this.getUser(userSub);
         if (subUserInfo == null) {
             var feedsServer = this.getFeedServer(subUserAddress.domain());
@@ -233,14 +205,14 @@ public class JavaFeeds implements Feeds {
                 return Result.error( ErrorCode.NOT_FOUND );
             }
 
-            Result<Void> res;
+            Result<List<Message>> res;
             if (!(res = feedsServer.subscribeServer(this.domain, userSub)).isOK()) {
                 Log.info("Could not subscribe server :(");
                 return Result.error(res.error());
             }
 
             synchronized (allUserInfo){
-                subUserInfo =  allUserInfo.computeIfAbsent(userSub, k -> new RemoteUser());
+                subUserInfo =  allUserInfo.computeIfAbsent(userSub, k -> new RemoteUser(res.value()));
             }
         }
 
@@ -252,7 +224,6 @@ public class JavaFeeds implements Feeds {
         synchronized (subUserInfo){
             var subsUsers = subUserInfo.getUsersSubscribers();
             subsUsers.add(user);
-            System.out.println(subsUsers);
         }
 
         return Result.error(ErrorCode.NO_CONTENT);
@@ -336,10 +307,10 @@ public class JavaFeeds implements Feeds {
     }
 
     @Override
-    public Result<Void> subscribeServer(String domain, String user) { // and external server subscribing in one of my local user
+    public Result<List<Message>> subscribeServer(String domain, String user) { // and external server subscribing in one of my local user
         Log.info("subscribeServer: domain=" + domain + " user=" + user);
         var address = Formatter.getUserAddress(user);
-        if (address == null || this.isForeignDomain( address.domain() )) {
+        if (address == null || this.isForeignDomain( address.domain() ) || !this.isForeignDomain(domain) ) {
             Log.info("Bad user address.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -351,14 +322,17 @@ public class JavaFeeds implements Feeds {
             return Result.error( ErrorCode.NOT_FOUND );
         }
 
-        if ( this.isForeignDomain(domain) ) { // TODO: look at this
-            synchronized (userInfo) {
-                var subs = userInfo.getServerSubscribers();
-                subs.add(domain);
-            }
-        }
+        synchronized (userInfo) {
+            var subs = userInfo.getServerSubscribers();
+            subs.add(domain);
 
-        return Result.ok();
+            return Result.ok(
+                    userInfo.getUserMessages()
+                            .values()
+                            .stream()
+                            .toList()
+            );
+        }
     }
 
     @Override
@@ -541,7 +515,6 @@ public class JavaFeeds implements Feeds {
         public FeedUser() {
             this.userMessages = new ConcurrentHashMap<>(); // do we really need this:
             this.usersSubscribers = new HashSet<>();
-            // this.userMessages = new HashMap<>();
         }
 
         public Map<Long, Message> getUserMessages() {
@@ -574,13 +547,19 @@ public class JavaFeeds implements Feeds {
         public Stream<Map<Long, Message>> getAllFeedMessages() {
             return Stream.concat(
                     Stream.of(this.getUserMessages()),
-                    // is there a problem over here??
-                    subscriptions.stream().map(sub -> allUserInfo.get(sub).getUserMessages())
+                    subscriptions.stream().map(sub -> getUser(sub).getUserMessages() )
             );
         }
     }
 
     private class RemoteUser extends FeedUser {
+        public RemoteUser(List<Message> msgs){
+            super();
+            var userMessages = this.getUserMessages();
+            for(Message msg : msgs)
+                userMessages.put(msg.getId(), msg);
+
+        }
         public synchronized boolean isOver(){
             return this.getUsersSubscribers().isEmpty();
         }

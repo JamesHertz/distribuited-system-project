@@ -62,7 +62,7 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     }
 
     @Override
-    public Result<Void> subscribeServer(String domain, String user) {
+    public Result<List<Message>> subscribeServer(String domain, String user) {
         return super.reTry( () -> super.toJavaResult( () -> stub().subscribeSever(domain, user) ) );
     }
 

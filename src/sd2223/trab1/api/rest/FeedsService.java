@@ -89,7 +89,7 @@ public interface FeedsService {
 	 * @param user user which feeds is created (format user@domain)
 	 */
 	@POST
-	@Consumes(MediaType.TEXT_PLAIN)
+	@Consumes(MediaType.APPLICATION_JSON)
 	void createFeed( String user );
 
 	/**
@@ -147,7 +147,8 @@ public interface FeedsService {
 	 */
 	@POST
 	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
-	void subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
+	@Produces(MediaType.APPLICATION_JSON)
+	List<Message> subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
 
 	@POST
 	@Path(EXTERNAL + "/{" + USER +"}")

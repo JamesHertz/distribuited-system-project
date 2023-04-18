@@ -4,10 +4,12 @@ import static sd2223.trab1.api.java.Result.error;
 import static sd2223.trab1.api.java.Result.ok;
 
 import java.net.URI;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
+import jakarta.ws.rs.core.GenericType;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 
@@ -57,18 +59,27 @@ public class RestClient {
 	}
 
 	protected <T> Result<T> toJavaResult(Response r, Class<T> entityType) {
+		return this.toJavaResult(r, () -> r.readEntity(entityType) );
+	}
+
+	protected <T> Result<T> toJavaResult(Response r, GenericType<T> genericType) {
+		return this.toJavaResult(r, () -> r.readEntity(genericType) );
+	}
+
+	private <T> Result<T> toJavaResult(Response r, Supplier<T> reader) {
 		try {
 			var status = r.getStatusInfo().toEnum();
 			if (status == Status.OK && r.hasEntity())
-				return ok(r.readEntity(entityType));
+				return ok( reader.get() );
 			else
-				if( status == Status.NO_CONTENT) return ok();
+			if( status == Status.NO_CONTENT) return ok();
 
 			return error(getErrorCodeFrom(status.getStatusCode()));
 		} finally {
 			r.close();
 		}
 	}
+
 
 	public static ErrorCode getErrorCodeFrom(int status) {
 		return switch (status) {
