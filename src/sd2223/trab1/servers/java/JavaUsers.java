@@ -1,6 +1,5 @@
 package sd2223.trab1.servers.java;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,22 +11,18 @@ import sd2223.trab1.api.java.Feeds;
 import sd2223.trab1.api.java.Result;
 import sd2223.trab1.api.java.Result.ErrorCode;
 import sd2223.trab1.api.java.Users;
-import sd2223.trab1.clients.ClientFactory;
-import sd2223.trab1.discovery.Discovery;
 import sd2223.trab1.utils.Formatter;
 
-public class JavaUsers implements Users {
+public class JavaUsers extends JavaService implements Users {
 	private final Map<String,User> users;
 	private final String domain;
 
-	public JavaUsers(){
-		this(null);
-	}
+	private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
+
 	public JavaUsers(String domain){
 		this.users = new HashMap<>();
 		this.domain = domain;
 	}
-	private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
 
 	@Override
 	public Result<String> createUser(User user) {
@@ -50,9 +45,14 @@ public class JavaUsers implements Users {
 
 		var userAddress =  Formatter.makeUserAddress( user.getName() , this.domain );
 
-		// TODO: make this persistent :)
-		var feedsServer = this.getMyFeedsServer();
-		feedsServer.createFeed( userAddress );
+		/*
+			var feedsServer = this.getMyFeedsServer();
+			feedsServer.createFeed( userAddress );
+		 */
+		super.addRequest(
+				this.domain,
+				server ->  server.createFeed( userAddress )
+		);
 		return Result.ok( userAddress );
 	}
 
@@ -66,11 +66,7 @@ public class JavaUsers implements Users {
 			return Result.error( ErrorCode.BAD_REQUEST);
 		}
 
-		User user;
-
-		synchronized (users){
-			user = users.get(name);
-		}
+		var  user = this.getUser(name);
 
 		// Check if user exists
 		if( user == null ) {
@@ -92,10 +88,7 @@ public class JavaUsers implements Users {
 		Log.info("updateUser: name=" + name + " ; pwd= " + pwd + " ; user=" + user) ;
 
 		if( user != null && name != null && pwd != null ){
-			User oldUser;
-			synchronized (users){
-				oldUser = users.get(name);
-			}
+			var oldUser = this.getUser(name);
 
 			if( oldUser == null ){
 				Log.info("User not found.");
@@ -139,11 +132,7 @@ public class JavaUsers implements Users {
 			return Result.error(ErrorCode.BAD_REQUEST);
 		}
 
-		User user;
-
-		synchronized ( users ) {
-			user = users.get(name);
-		}
+		var user = this.getUser(name);
 
 		if( user == null ) {
 			Log.info("User does not exist.");
@@ -159,8 +148,16 @@ public class JavaUsers implements Users {
 			users.remove(name);
 		}
 
-		var server = this.getMyFeedsServer();
-		server.removeFeed( Formatter.makeUserAddress(name, this.domain) );
+
+		var userAddress =  Formatter.makeUserAddress(name, this.domain);
+		/*
+			var server = this.getMyFeedsServer();
+			server.removeFeed( userAddress );
+		 */
+		super.addRequest(
+				this.domain,
+				server ->  server.removeFeed( userAddress )
+		);
 		return Result.ok( user );
 	}
 
@@ -194,11 +191,13 @@ public class JavaUsers implements Users {
 			return Result.error( res.error() );
 	}
 
-
+	private User getUser(String username){
+		synchronized (users){
+			return users.get(username);
+		}
+	}
 	private Feeds getMyFeedsServer(){
-		var ds = Discovery.getInstance();
-		URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(this.domain, Formatter.FEEDS_SERVICE), 1);
-		return ClientFactory.getFeedsClient(serverURIs[0]);
+		return super.getFeedServer(this.domain);
 	}
 
 }
