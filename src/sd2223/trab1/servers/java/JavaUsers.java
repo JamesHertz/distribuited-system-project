@@ -66,11 +66,7 @@ public class JavaUsers implements Users {
 			return Result.error( ErrorCode.BAD_REQUEST);
 		}
 
-		User user;
-
-		synchronized (users){
-			user = users.get(name);
-		}
+		var user = this.getUser(name);
 
 		// Check if user exists
 		if( user == null ) {
@@ -92,10 +88,7 @@ public class JavaUsers implements Users {
 		Log.info("updateUser: name=" + name + " ; pwd= " + pwd + " ; user=" + user) ;
 
 		if( user != null && name != null && pwd != null ){
-			User oldUser;
-			synchronized (users){
-				oldUser = users.get(name);
-			}
+			var oldUser = this.getUser(name);
 
 			if( oldUser == null ){
 				Log.info("User not found.");
@@ -139,11 +132,7 @@ public class JavaUsers implements Users {
 			return Result.error(ErrorCode.BAD_REQUEST);
 		}
 
-		User user;
-
-		synchronized ( users ) {
-			user = users.get(name);
-		}
+		var user = this.getUser(name);
 
 		if( user == null ) {
 			Log.info("User does not exist.");
@@ -194,6 +183,12 @@ public class JavaUsers implements Users {
 			return Result.error( res.error() );
 	}
 
+
+	private User getUser(String username){
+		synchronized (users){
+			return users.get(username);
+		}
+	}
 
 	private Feeds getMyFeedsServer(){
 		var ds = Discovery.getInstance();

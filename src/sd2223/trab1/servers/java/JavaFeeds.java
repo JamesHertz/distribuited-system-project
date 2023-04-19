@@ -152,6 +152,10 @@ public class JavaFeeds implements Feeds {
                         .findFirst();
             }
 
+            //  users@domain                  feed@domain
+            // addUser(username)     -->   createFeed(useraddress)
+            // removeUser(username)  -->   removeFeed(useraddress)
+            // requests
             if(res.isPresent()) {
                 Log.info("Message " + mid + " found.");
                 return Result.ok(res.get());
