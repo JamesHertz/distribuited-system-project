@@ -12,6 +12,7 @@ import sd2223.trab1.utils.IDGenerator;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -63,7 +64,7 @@ public class JavaFeeds extends JavaService implements Feeds {
                     .forEach( domain -> {
                         super.addRequest(
                                 domain,
-                                server -> createExtFeedMessage(user, msg)
+                                server -> server.createExtFeedMessage(user, msg)
                         );
                         /*
                         var feedServer = super.getFeedServer(domain);
@@ -272,24 +273,6 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.ok();
     }
 
-    private void removeFromSubscribers(String user, String userSub){
-        var userInfo = this.getUser(userSub);
-        assert  userInfo != null;
-        synchronized (userInfo) {
-            var subs = userInfo.getUsersSubscribers();
-            subs.remove(user);
-        }
-        if(userInfo instanceof RemoteUser &&
-                ((RemoteUser) userInfo).isOver()){
-            synchronized (allUserInfo){
-                allUserInfo.remove(userSub);
-            }
-            var server = this.getFeedServer( Formatter.getUserAddress(userSub).domain() );
-            assert server != null;
-            server.unsubscribeServer(this.domain, userSub);
-        }
-    }
-
     @Override
     public Result<List<String>> listSubs(String user) {
         Log.info("listSubs: user=" + user);
@@ -349,7 +332,7 @@ public class JavaFeeds extends JavaService implements Feeds {
 
     @Override
     public Result<Void> createExtFeedMessage(String user, Message msg) {
-        Log.info(String.format("receiveMessage: user=%s ; msg=%s", user, msg));
+        Log.info(String.format("createExtFeedMessage: user=%s ; msg=%s", user, msg));
         var address = Formatter.getUserAddress(user);
         if( msg == null || address == null || !this.isForeignDomain(address.domain()) ) { // is it worthed worrying about msg fields being null??0
             Log.info("Bad request.");
@@ -436,8 +419,6 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.error( ErrorCode.NOT_FOUND );
     }
 
-<<<<<<< Updated upstream
-=======
     private void removeFromSubscribers(String user, String userSub){
         var userInfo = this.getUser(userSub);
         assert  userInfo != null;
@@ -473,7 +454,6 @@ public class JavaFeeds extends JavaService implements Feeds {
         Log.info("Message forwarded.");
         return request.apply(server);
     }
->>>>>>> Stashed changes
 
     private Result<Void> doRemove(String user){
         var userInfo = getUser(user);
@@ -548,12 +528,12 @@ public class JavaFeeds extends JavaService implements Feeds {
         return server;
     }
 
-    private Users getUserServer(String serverDomain) {
-        var ds = Discovery.getInstance();
-        URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.USERS_SERVICE), 1);
-        if (serverURIs.length == 0) return null;
-        return ClientFactory.getUsersClient(serverURIs[0]);
-    }
+     private Users getUserServer(String serverDomain) {
+         var ds = Discovery.getInstance();
+         URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.USERS_SERVICE), 1);
+         if (serverURIs.length == 0) return null;
+         return ClientFactory.getUsersClient(serverURIs[0]);
+     }
 
 
     private static abstract class FeedUser {

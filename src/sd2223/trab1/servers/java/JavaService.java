@@ -39,26 +39,11 @@ public class JavaService {
             int times = requests.size();
             for(int i = 0; i < times; ++i){
                 var req = requests.remove();
-                var client = clients.computeIfAbsent(req.serviceID(), this::getFeedServer);
+                var client = clients.computeIfAbsent(req.domain(), this::getFeedServer);
                 var res = req.performAction(client);
-                if (!res.isOK() || res.error() == Result.ErrorCode.TIMEOUT) {
+                if ( !res.isOK() && res.error() == Result.ErrorCode.TIMEOUT ) {
                    requests.add(req);
                 }
-                /*
-                    else {
-                        // clients.remove(req.serviceID());   // todo: think about this
-                    }
-                */
-                /*
-                      fct di
-                      failures = { fct }
-                      requests = {
-                            (di, ...)
-                            (fct, ...) 13s
-                            (fct, ...) 13s
-                            (fct, ...) 13s
-                      }
-                 */
             }
             this.sleep(DEFAULT_TIMEOUT);
         }
@@ -86,7 +71,7 @@ public class JavaService {
 
     }
 
-    record Request<T>(String serviceID, RequestAction<T> action) {
+    record Request<T>(String domain, RequestAction<T> action) {
         Result<?> performAction(T client) {
             return action.performAction(client);
         }
