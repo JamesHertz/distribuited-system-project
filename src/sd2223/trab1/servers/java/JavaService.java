@@ -43,6 +43,7 @@ public class JavaService {
     }
 
     private static class RequestConsumer {
+        private static final long WAIT_TIME = 2000;
         private final Queue<Request<?>> requestQueue;
         private final Queue<Request<?>> newRequests;
         private final Feeds remoteServer;
@@ -55,6 +56,20 @@ public class JavaService {
                     this::loop
             ).start();
         }
+        public void addRequest(Request<?> request) {
+            boolean probablyWaiting = this.requestQueueIsEmpty();
+            synchronized (newRequests) {
+                newRequests.add(request);
+                if(probablyWaiting)
+                    newRequests.notifyAll();
+            }
+        }
+
+        public boolean requestQueueIsEmpty() {
+            synchronized (requestQueue) {
+                return requestQueue.isEmpty();
+            }
+        }
 
         private void loop() {
             for (;;) {
@@ -66,7 +81,10 @@ public class JavaService {
 
                 assert req != null;
                 var res = req.execute(remoteServer);
-                if(!res.isOK() && res.error() == Result.ErrorCode.TIMEOUT) continue;
+                if(!res.isOK() && res.error() == Result.ErrorCode.TIMEOUT){
+                    this.sleep(WAIT_TIME); // wait a bit before retrying :)
+                    continue;
+                }
 
                 synchronized (requestQueue){
                     requestQueue.remove();
@@ -86,19 +104,14 @@ public class JavaService {
                }
            }
         }
-        public void addRequest(Request<?> request) {
-            boolean probablyWaiting = this.requestQueueIsEmpty();
-            synchronized (newRequests) {
-                newRequests.add(request);
-                if(probablyWaiting)
-                    newRequests.notifyAll();
-            }
-        }
 
-        public boolean requestQueueIsEmpty() {
-            synchronized (requestQueue) {
-                return requestQueue.isEmpty();
+        private void sleep(long ms){
+            try{
+               Thread.sleep(ms);
+            } catch (InterruptedException e) {
+                // do nothing
             }
+
         }
     }
 
