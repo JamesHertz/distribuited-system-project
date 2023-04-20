@@ -540,8 +540,6 @@ public class JavaFeeds implements Feeds {
     }
 
     private Feeds getFeedServer(String serverDomain) {
-        if (this.domain.equals(serverDomain)) return null;
-
         var ds = Discovery.getInstance();
         URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
         if (serverURI.length == 0) return null;

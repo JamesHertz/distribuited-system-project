@@ -1,68 +1,104 @@
 package sd2223.trab1.servers.java;
 
+
+import sd2223.trab1.api.java.Feeds;
 import sd2223.trab1.api.java.Result;
+import sd2223.trab1.clients.ClientFactory;
+import sd2223.trab1.discovery.Discovery;
+import sd2223.trab1.utils.Formatter;
 
+import java.net.URI;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Queue;
-import java.util.function.Function;
 
-public class JavaService<T> {
-    private final Queue<Request<T>> requests;
-    private final ClientBuilder<T> serviceBuilder;
+public class JavaService {
 
-    public JavaService(ClientBuilder<T> serviceBuilder) {
-        this.serviceBuilder = serviceBuilder;
-        this.requests = new LinkedList<>();
-        new Thread(this::run).start();
+    private final Map<String, RequestConsumer> consumers;
+    public JavaService(){
+        this.consumers = new HashMap<>();
     }
 
-    private void run() {
-        // map with all the clients
-        for (;;) {
-            Request<T> req;
-            synchronized (requests) {
-                try {
-                    if (requests.isEmpty()) {
-                        this.wait();
-                    }
-                } catch (InterruptedException e) {
-                    continue;
+    public void addRequest(String domain, Request request){
+        RequestConsumer aux;
+        synchronized (consumers){
+            aux = consumers.computeIfAbsent(domain, k -> {
+                return new RequestConsumer( this.getFeedServer(domain) );
+            });
+        }
+        aux.addRequest(request);
+    }
+
+    private Feeds getFeedServer(String serverDomain) {
+        var ds = Discovery.getInstance();
+        URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
+        if (serverURI.length == 0) return null;
+        return ClientFactory.getFeedsClient(serverURI[0]);
+    }
+
+    interface Request {
+        <T> Result<T> execute(Feeds server);
+    }
+
+    private static class RequestConsumer {
+        private final Queue<Request> requestQueue;
+        private final Queue<Request> newRequests;
+        private final Feeds remoteServer;
+
+        public RequestConsumer(Feeds remoteServer) {
+            this.remoteServer = remoteServer;
+            this.requestQueue = new LinkedList<>();
+            this.newRequests = new LinkedList<>();
+            new Thread(
+                    this::loop
+            ).start();
+        }
+
+        private void loop() {
+            for (;;) {
+                if(this.requestQueueIsEmpty()) this.getNewRequest();
+                Request req;
+                synchronized (requestQueue){
+                    req = requestQueue.peek();
                 }
-                req = requests.remove();
-            }
 
-            var client = serviceBuilder.build(req.serviceID());
-            var res = req.performAction(client);
-            if (!res.isOK() || res.error() == Result.ErrorCode.TIMEOUT) {
-                requests.add(req);
+                assert req != null;
+                var res = req.execute(remoteServer);
+                if(!res.isOK() && res.error() == Result.ErrorCode.TIMEOUT) continue;
+
+                synchronized (requestQueue){
+                    requestQueue.remove();
+                }
             }
-            // wait :) few seconds
         }
-    }
 
-    public void addRequest(String serviceID, RequestAction<T> action){
-       synchronized (requests){
-           requests.add(new Request<>(serviceID, action));
-           if(requests.size() == 1){ // the one I just added
-               requests.notifyAll();
+        private void getNewRequest(){
+           synchronized (newRequests){
+               while(newRequests.isEmpty()){
+                   try{
+                       newRequests.wait();
+                   } catch (InterruptedException ignored) {}
+               }
+               synchronized (requestQueue){
+                   requestQueue.addAll( newRequests );
+               }
            }
-       }
-    }
-
-    record Request<T>(String serviceID, RequestAction<T> action) {
-        Result<?> performAction(T client) {
-            return action.performAction(client);
         }
-    }
+        public void addRequest(Request request) {
+            boolean probablyWaiting = this.requestQueueIsEmpty();
+            synchronized (newRequests) {
+                newRequests.add(request);
+                if(probablyWaiting)
+                    newRequests.notifyAll();
+            }
+        }
 
-    ;
-
-    interface ClientBuilder<T> {
-        T build(String serviceID);
-    }
-
-    interface RequestAction<T> {
-        Result<?> performAction(T client);
+        public boolean requestQueueIsEmpty() {
+            synchronized (requestQueue) {
+                return requestQueue.isEmpty();
+            }
+        }
     }
 
 

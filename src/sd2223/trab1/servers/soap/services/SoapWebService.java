@@ -19,9 +19,9 @@ public abstract class SoapWebService<E extends Throwable> {
 	<T> T fromJavaResult(Result<T> result) throws E {
 		if (result.isOK())
 			return result.value();
+		else if(result.error() == Result.ErrorCode.NO_CONTENT)
+			return null;
 		else {
-			var errCode = Result.ErrorCode.valueOf( result.error().toString() );
-			if(errCode == Result.ErrorCode.NO_CONTENT) return null;
 			throw exceptionMapper.apply(result);
 		}
 	}
