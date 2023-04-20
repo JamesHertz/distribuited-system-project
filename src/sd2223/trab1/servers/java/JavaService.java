@@ -65,7 +65,8 @@ public class JavaService {
             boolean probablyWaiting = this.requestQueueIsEmpty();
             synchronized (newRequests) {
                 // if the queue is empty try to send the request if it fails add it to the queue
-                if (!(probablyWaiting && !this.executeRequest(request))) {
+                if (!(probablyWaiting && newRequests.isEmpty()
+                        && this.executeRequest(request))) {
                     newRequests.add(request);
                     System.out.println("Adding message to the queue...");
                     if (probablyWaiting)
@@ -119,6 +120,7 @@ public class JavaService {
                 synchronized (requestQueue) {
                     requestQueue.addAll(newRequests);
                 }
+                newRequests.clear();
             }
         }
 
