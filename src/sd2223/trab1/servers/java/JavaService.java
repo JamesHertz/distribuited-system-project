@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JavaService {
 
@@ -48,11 +49,13 @@ public class JavaService {
         private final Queue<Request<?>> requestQueue;
         private final Queue<Request<?>> newRequests;
         private final Feeds remoteServer;
+        // private final AtomicBoolean waitingForMessages;
 
         public RequestConsumer(Feeds remoteServer) {
             this.remoteServer = remoteServer;
             this.requestQueue = new LinkedList<>();
             this.newRequests = new LinkedList<>();
+            // this.waitingForMessages = new AtomicBoolean(false);
             new Thread(
                     this::loop
             ).start();
@@ -62,8 +65,9 @@ public class JavaService {
             boolean probablyWaiting = this.requestQueueIsEmpty();
             synchronized (newRequests) {
                 // if the queue is empty try to send the request if it fails add it to the queue
-                if (!(probablyWaiting && this.executeRequest(request))) {
+                if (!(probablyWaiting && !this.executeRequest(request))) {
                     newRequests.add(request);
+                    System.out.println("Adding message to the queue...");
                     if (probablyWaiting)
                         newRequests.notifyAll();
                 }
@@ -80,7 +84,7 @@ public class JavaService {
         private boolean executeRequest(Request<?> req) {
             synchronized (remoteServer) {
                 var res = req.execute(remoteServer);
-                return !res.isOK() && res.error() == Result.ErrorCode.TIMEOUT; // request failed
+                return res.isOK() || res.error() != Result.ErrorCode.TIMEOUT; // request failed
             }
         }
 
@@ -92,8 +96,8 @@ public class JavaService {
                     req = requestQueue.peek();
                 }
 
-                var failed = this.executeRequest(req);
-                if (failed) {
+                var success = this.executeRequest(req);
+                if (! success ) {
                     this.sleep(WAIT_TIME); // wait a bit before retrying :)
                     continue; // retry
                 }
