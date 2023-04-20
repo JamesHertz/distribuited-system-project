@@ -3,9 +3,12 @@ package sd2223.trab1.clients.soap;
 import jakarta.xml.ws.BindingProvider;
 import jakarta.xml.ws.Service;
 import sd2223.trab1.api.Message;
+import sd2223.trab1.api.User;
 import sd2223.trab1.api.java.Feeds;
 import sd2223.trab1.api.java.Result;
 import sd2223.trab1.api.soap.FeedsService;
+import sd2223.trab1.discovery.Discovery;
+import sd2223.trab1.utils.Formatter;
 
 import javax.xml.namespace.QName;
 import java.net.URI;
@@ -95,4 +98,30 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     public Result<Void> unsubscribeServer(String domain, String user) {
          return super.reTry( () -> super.toJavaResult( () -> stub().unsubscribeSever(domain, user) ));
     }
+
+
+    // public static void main(String[] args) {
+    //     var domain = args[0];
+    //     var ds = Discovery.getInstance();
+    //     var uris = ds.knownUrisOf(Formatter.getServiceID(domain, Formatter.USERS_SERVICE), 1);
+    //     if( uris.length == 0){
+    //         System.err.println("users service for domain: " + domain + " not found.");
+    //         System.exit(1);
+    //     }
+
+    //     var user = new User();
+    //     user.setDomain(domain);
+    //     user.setPwd("1234");
+    //     user.setName("jhertz");
+    //     user.setDisplayName("James Hertz");
+
+    //     var client = new SoapUsersClient(uris[0]);
+    //     var res = client.createUser(user);
+    //     if(res.isOK())
+    //         System.out.println("User created successfully!!!");
+    //     else {
+    //         System.err.println("Error: " + res.error());
+    //     }
+    // }
+
 }

@@ -13,6 +13,7 @@ import jakarta.jws.WebService;
 public class SoapUsersWebService extends SoapWebService<UsersException> implements UsersService {
 
 	private final Users impl;
+
 	public SoapUsersWebService(Users impl) {
 		super( (result)-> new UsersException( result.error().toString()));
 		this.impl = impl;

@@ -20,9 +20,6 @@ public class JavaUsers implements Users {
 	private final Map<String,User> users;
 	private final String domain;
 
-	public JavaUsers(){
-		this(null);
-	}
 	public JavaUsers(String domain){
 		this.users = new HashMap<>();
 		this.domain = domain;
