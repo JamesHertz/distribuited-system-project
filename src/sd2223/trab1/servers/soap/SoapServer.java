@@ -10,6 +10,7 @@ import sd2223.trab1.servers.java.JavaFeeds;
 import sd2223.trab1.servers.java.JavaUsers;
 import sd2223.trab1.servers.soap.services.SoapFeedsWebService;
 import sd2223.trab1.servers.soap.services.SoapUsersWebService;
+import sd2223.trab1.utils.Formatter;
 
 import static sd2223.trab1.utils.Formatter.*;
 
@@ -22,14 +23,14 @@ public class SoapServer {
 
 
 	public static void main(String[] args) {
-		if(args.length < 2){
-			System.out.println("usage: <domain> <service>");
-			System.out.println("ERROR: wrong number of arguments");
-			System.exit(1);
-		}
+		 if(args.length < 2){
+		 	System.out.println("usage: <domain> <service>");
+		 	System.out.println("ERROR: wrong number of arguments");
+		 	System.exit(1);
+		 }
 		try {
 
-			String domain =  args[0];
+			String domain = args[0];
 			String service = args[1];
 			long baseNumber = 0;
 
@@ -38,9 +39,9 @@ public class SoapServer {
 				baseNumber = Long.parseLong(args[1]);
 			}
 
-			String serverID = getServiceID(domain, service);
+			String serverID = Formatter.getServiceID(domain, service);
 			String serverName = InetAddress.getLocalHost().getHostName();
-			String serverURI = getSoapURI(serverName, SOAP_PORT).toString();
+			String serverURI = Formatter.getSoapURI(serverName, SOAP_PORT).toString();
 
 			Discovery ds = Discovery.getInstance();
 			ds.announce(serverID, serverURI);

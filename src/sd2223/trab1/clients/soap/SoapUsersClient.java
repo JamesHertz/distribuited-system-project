@@ -61,5 +61,4 @@ public class SoapUsersClient extends SoapClient implements Users {
 		throw new RuntimeException("Not Implemented...");
 	}
 
-	
 }
