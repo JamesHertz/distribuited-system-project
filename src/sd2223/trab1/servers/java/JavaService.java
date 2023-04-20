@@ -20,7 +20,7 @@ public class JavaService {
         this.consumers = new HashMap<>();
     }
 
-    public void addRequest(String domain, Request request){
+    public <T> void addRequest(String domain, Request<T> request){
         RequestConsumer aux;
         synchronized (consumers){
             aux = consumers.computeIfAbsent(domain, k -> {
@@ -30,20 +30,21 @@ public class JavaService {
         aux.addRequest(request);
     }
 
-    private Feeds getFeedServer(String serverDomain) {
+    protected Feeds getFeedServer(String serverDomain) {
         var ds = Discovery.getInstance();
         URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
         if (serverURI.length == 0) return null;
         return ClientFactory.getFeedsClient(serverURI[0]);
     }
 
-    interface Request {
-        <T> Result<T> execute(Feeds server);
+    @FunctionalInterface
+    interface Request <T> {
+       Result<T> execute(Feeds server);
     }
 
     private static class RequestConsumer {
-        private final Queue<Request> requestQueue;
-        private final Queue<Request> newRequests;
+        private final Queue<Request<?>> requestQueue;
+        private final Queue<Request<?>> newRequests;
         private final Feeds remoteServer;
 
         public RequestConsumer(Feeds remoteServer) {
@@ -58,7 +59,7 @@ public class JavaService {
         private void loop() {
             for (;;) {
                 if(this.requestQueueIsEmpty()) this.getNewRequest();
-                Request req;
+                Request<?> req;
                 synchronized (requestQueue){
                     req = requestQueue.peek();
                 }
@@ -85,7 +86,7 @@ public class JavaService {
                }
            }
         }
-        public void addRequest(Request request) {
+        public void addRequest(Request<?> request) {
             boolean probablyWaiting = this.requestQueueIsEmpty();
             synchronized (newRequests) {
                 newRequests.add(request);
