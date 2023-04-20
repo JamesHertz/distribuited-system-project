@@ -13,7 +13,11 @@ public class SoapFeedsWebService extends SoapWebService<FeedsException> implemen
     private final Feeds impl;
 
     public SoapFeedsWebService(Feeds impl){
-        super(res -> new FeedsException( res.toString() ));
+        super(res -> {
+            var aux = new FeedsException(res.toString());
+            System.out.println("aux.getMessage(): " + aux.getMessage());
+            return aux;
+        });
         this.impl = impl;
     }
 
