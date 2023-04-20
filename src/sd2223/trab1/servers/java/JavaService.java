@@ -16,15 +16,16 @@ import java.util.Queue;
 public class JavaService {
 
     private final Map<String, RequestConsumer> consumers;
-    public JavaService(){
+
+    public JavaService() {
         this.consumers = new HashMap<>();
     }
 
-    public <T> void addRequest(String domain, Request<T> request){
+    public <T> void addRequest(String domain, Request<T> request) {
         RequestConsumer aux;
-        synchronized (consumers){
+        synchronized (consumers) {
             aux = consumers.computeIfAbsent(domain, k -> {
-                return new RequestConsumer( this.getFeedServer(domain) );
+                return new RequestConsumer(this.getFeedServer(domain));
             });
         }
         aux.addRequest(request);
@@ -38,8 +39,8 @@ public class JavaService {
     }
 
     @FunctionalInterface
-    interface Request <T> {
-       Result<T> execute(Feeds server);
+    interface Request<T> {
+        Result<T> execute(Feeds server);
     }
 
     private static class RequestConsumer {
@@ -56,20 +57,18 @@ public class JavaService {
                     this::loop
             ).start();
         }
+
         public void addRequest(Request<?> request) {
-            System.out.println("Adding request to the queue...");
             boolean probablyWaiting = this.requestQueueIsEmpty();
-            int aux = 0;
             synchronized (newRequests) {
-                newRequests.add(request);
-                if(probablyWaiting)
-                    newRequests.notifyAll();
-                aux = newRequests.size();
+                // if the queue is empty try to send the request if it fails add it to the queue
+                if (!(probablyWaiting && this.executeRequest(request))) {
+                    newRequests.add(request);
+                    if (probablyWaiting)
+                        newRequests.notifyAll();
+                }
             }
-            synchronized (requestQueue){
-                aux += requestQueue.size();
-            }
-            System.out.println("requests waiting: " + aux);
+
         }
 
         public boolean requestQueueIsEmpty() {
@@ -78,43 +77,50 @@ public class JavaService {
             }
         }
 
+        private boolean executeRequest(Request<?> req) {
+            synchronized (remoteServer) {
+                var res = req.execute(remoteServer);
+                return !res.isOK() && res.error() == Result.ErrorCode.TIMEOUT; // request failed
+            }
+        }
+
         private void loop() {
-            for (;;) {
-                if(this.requestQueueIsEmpty()) this.getNewRequest();
+            for (; ; ) {
+                if (this.requestQueueIsEmpty()) this.getNewRequest();
                 Request<?> req;
-                synchronized (requestQueue){
+                synchronized (requestQueue) {
                     req = requestQueue.peek();
                 }
 
-                assert req != null;
-                var res = req.execute(remoteServer);
-                if(!res.isOK() && res.error() == Result.ErrorCode.TIMEOUT){
+                var failed = this.executeRequest(req);
+                if (failed) {
                     this.sleep(WAIT_TIME); // wait a bit before retrying :)
-                    continue;
+                    continue; // retry
                 }
 
-                synchronized (requestQueue){
+                synchronized (requestQueue) {
                     requestQueue.remove();
                 }
             }
         }
 
-        private void getNewRequest(){
-           synchronized (newRequests){
-               while(newRequests.isEmpty()){
-                   try{
-                       newRequests.wait();
-                   } catch (InterruptedException ignored) {}
-               }
-               synchronized (requestQueue){
-                   requestQueue.addAll( newRequests );
-               }
-           }
+        private void getNewRequest() {
+            synchronized (newRequests) {
+                while (newRequests.isEmpty()) {
+                    try {
+                        newRequests.wait();
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+                synchronized (requestQueue) {
+                    requestQueue.addAll(newRequests);
+                }
+            }
         }
 
-        private void sleep(long ms){
-            try{
-               Thread.sleep(ms);
+        private void sleep(long ms) {
+            try {
+                Thread.sleep(ms);
             } catch (InterruptedException e) {
                 // do nothing
             }
