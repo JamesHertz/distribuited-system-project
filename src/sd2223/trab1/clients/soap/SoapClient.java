@@ -66,9 +66,10 @@ abstract class SoapClient {
 	
 	protected <R> Result<R> toJavaResult(ResultSupplier<R> supplier) {
 		try {
-			return ok( supplier.get());	
-		} 
+			 return ok( supplier.get());
+		}
 		catch (WebServiceException x) {
+			if(x.getMessage().equals( ErrorCode.NO_CONTENT.toString())) return ok();
 			throw x;
 		}
 		catch (Exception e) {

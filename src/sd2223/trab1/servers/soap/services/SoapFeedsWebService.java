@@ -39,7 +39,9 @@ public class SoapFeedsWebService extends SoapWebService<FeedsException> implemen
 
     @Override
     public void subUser(String user, String userSub, String pwd) throws FeedsException {
-        super.fromJavaResult( impl.subscribeUser(user, userSub, pwd) );
+        var res = impl.subscribeUser(user, userSub, pwd);
+        System.out.println("subUser: error=" + res.error());
+        super.fromJavaResult( res );
     }
 
     @Override
