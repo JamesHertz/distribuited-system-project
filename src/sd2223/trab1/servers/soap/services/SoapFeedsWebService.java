@@ -13,7 +13,7 @@ public class SoapFeedsWebService extends SoapWebService<FeedsException> implemen
     private final Feeds impl;
 
     public SoapFeedsWebService(Feeds impl){
-        super(res ->  new FeedsException(res.error().toString()));
+        super(res ->  new FeedsException( res.error().toString() ));
         this.impl = impl;
     }
 
@@ -39,9 +39,7 @@ public class SoapFeedsWebService extends SoapWebService<FeedsException> implemen
 
     @Override
     public void subUser(String user, String userSub, String pwd) throws FeedsException {
-        var res = impl.subscribeUser(user, userSub, pwd);
-        System.out.println("subUser: error=" + res.error());
-        super.fromJavaResult( res );
+        super.fromJavaResult( impl.subscribeUser(user, userSub, pwd) );
     }
 
     @Override
