@@ -57,12 +57,19 @@ public class JavaService {
             ).start();
         }
         public void addRequest(Request<?> request) {
+            System.out.println("Adding request to the queue...");
             boolean probablyWaiting = this.requestQueueIsEmpty();
+            int aux = 0;
             synchronized (newRequests) {
                 newRequests.add(request);
                 if(probablyWaiting)
                     newRequests.notifyAll();
+                aux = newRequests.size();
             }
+            synchronized (requestQueue){
+                aux += requestQueue.size();
+            }
+            System.out.println("requests waiting: " + aux);
         }
 
         public boolean requestQueueIsEmpty() {
