@@ -56,7 +56,8 @@ public class SoapServer {
 				}
 			}
 
-			Endpoint.publish(serverURI.replace(serverName, "0.0.0.0"), implementor);
+			// Endpoint.publish(serverURI.replace(serverName, "0.0.0.0"), implementor);
+			Endpoint.publish(serverURI, implementor);
 			System.out.printf("%s Soap Server ready @ %s\n", service, serverURI);
 		} catch (IOException e) {
 			System.err.println(e.getMessage());

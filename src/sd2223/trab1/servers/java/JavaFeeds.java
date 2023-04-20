@@ -99,7 +99,7 @@ public class JavaFeeds implements Feeds {
                         });
 
                 Log.info("Message " + mid + " removed.");
-                return Result.ok();
+                return Result.error( ErrorCode.NO_CONTENT );
             }
         }
 
@@ -282,7 +282,7 @@ public class JavaFeeds implements Feeds {
 
         this.removeFromSubscribers(user, userSub);
         Log.info("unsubscription performed");
-        return Result.ok();
+        return Result.error( ErrorCode.NO_CONTENT );
     }
 
 

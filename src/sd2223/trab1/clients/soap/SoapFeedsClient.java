@@ -51,7 +51,7 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
 
     @Override
     public Result<Void> subscribeUser(String user, String userSub, String pwd) {
-        throw new RuntimeException("Not Implemented...");
+        return super.reTry( () -> super.toJavaResult( () -> stub().subUser(user, userSub, pwd) ) );
     }
 
     @Override
@@ -100,28 +100,64 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     }
 
 
-    // public static void main(String[] args) {
-    //     var domain = args[0];
-    //     var ds = Discovery.getInstance();
-    //     var uris = ds.knownUrisOf(Formatter.getServiceID(domain, Formatter.USERS_SERVICE), 1);
-    //     if( uris.length == 0){
-    //         System.err.println("users service for domain: " + domain + " not found.");
-    //         System.exit(1);
-    //     }
+    private static URI[] getURIs(String serviceID){
+        var ds = Discovery.getInstance();
+        var uris = ds.knownUrisOf(serviceID, 1);
+        if( uris.length == 0){
+            System.err.println("service " + serviceID + " not found.");
+            System.exit(1);
+        }
+        return uris;
+    }
 
-    //     var user = new User();
-    //     user.setDomain(domain);
-    //     user.setPwd("1234");
-    //     user.setName("jhertz");
-    //     user.setDisplayName("James Hertz");
+    private static void printResult(Result<?> res){
+        if(res.isOK())
+            System.out.println("User created successfully!!!");
+        else {
+            System.err.println("Error: " + res.error());
+        }
+    }
+     public static void main(String[] args) {
+        String[] domains = {"fct", "di", "fct"};
+        String[] names   = {"james", "hertz", "jhertz"};
 
-    //     var client = new SoapUsersClient(uris[0]);
-    //     var res = client.createUser(user);
-    //     if(res.isOK())
-    //         System.out.println("User created successfully!!!");
-    //     else {
-    //         System.err.println("Error: " + res.error());
-    //     }
-    // }
+
+         var user = new User();
+         user.setDomain(domains[0]);
+         user.setPwd("1234");
+         user.setName("jhertz");
+         user.setDisplayName("James Hertz");
+
+         for(int i = 0; i < names.length; ++i){
+             var uris = getURIs(Formatter.getServiceID(domains[i], Formatter.USERS_SERVICE));
+             var client = new SoapUsersClient(uris[0]);
+             user.setName(names[i]);
+             user.setDomain(domains[i]);
+             printResult(
+                     client.createUser(user)
+             );
+
+         }
+         var uris = getURIs(Formatter.getServiceID(domains[0], Formatter.FEEDS_SERVICE));
+         var feedClient = new SoapFeedsClient(uris[0]);
+
+         printResult(
+                 feedClient.subscribeUser(
+                         names[0] + "@" + domains[0],
+                         names[1] + "@" + domains[1],
+                         user.getPwd()
+                 )
+         );
+
+         printResult(
+                 feedClient.subscribeUser(
+                         names[0] + "@" + domains[0],
+                         names[2] + "@" + domains[2],
+                         user.getPwd()
+                 )
+         );
+
+         System.out.println("Shutting down :)");
+     }
 
 }
