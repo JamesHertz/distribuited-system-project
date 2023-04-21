@@ -69,7 +69,8 @@ public class JavaFeeds extends JavaService implements Feeds {
                          */
                          super.addRequest(
                                  domain,
-                                 server -> server.createExtFeedMessage(user, msg)
+                                 server -> server.createExtFeedMessage(user, msg),
+                                 true // forceBackground
                          );
                     });
             Log.info(String.format("Message %d created", mid));

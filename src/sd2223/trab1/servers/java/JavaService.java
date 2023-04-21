@@ -23,13 +23,17 @@ public class JavaService {
     }
 
     public <T> void addRequest(String domain, Request<T> request) {
+        this.addRequest(domain, request, false);
+    }
+
+    public <T> void addRequest(String domain, Request<T> request, boolean forceBackground) {
         RequestConsumer aux;
         synchronized (consumers) {
             aux = consumers.computeIfAbsent(domain, k -> {
                 return new RequestConsumer(this.getFeedServer(domain));
             });
         }
-        aux.addRequest(request);
+        aux.addRequest(request, forceBackground);
     }
 
     protected Feeds getFeedServer(String serverDomain) {
@@ -61,19 +65,19 @@ public class JavaService {
             ).start();
         }
 
-        public void addRequest(Request<?> request) {
+        public void addRequest(Request<?> request, boolean forceBackground) {
             boolean probablyWaiting = this.requestQueueIsEmpty();
             synchronized (newRequests) {
                 // if the queue is empty try to send the request if it fails add it to the queue
-                newRequests.add(request);
-                if(probablyWaiting)
-                    newRequests.notifyAll();
-                // if (!(probablyWaiting && newRequests.isEmpty()
-                //         && this.executeRequest(request))) {
-                //     System.out.println("Adding message to the queue...");
-                //     if (probablyWaiting)
-                //         newRequests.notifyAll();
-                // }
+                // newRequests.add(request);
+                // if(probablyWaiting)
+                //     newRequests.notifyAll();
+                 if (forceBackground || !(probablyWaiting && newRequests.isEmpty()
+                         && this.executeRequest(request))) {
+                     System.out.println("Adding message to the queue...");
+                     if (probablyWaiting)
+                         newRequests.notifyAll();
+                 }
             }
 
         }
