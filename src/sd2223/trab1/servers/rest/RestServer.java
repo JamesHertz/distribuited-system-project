@@ -29,13 +29,13 @@ public class RestServer {
             long baseNumber = 0;
 
             if( args.length > 2 ) {
-                service = args[2]; //"users";
+                service = args[2];
                 baseNumber = Long.parseLong(args[1]);
             }
 
-            String serverID = getServiceID(domain, service);//String.format(SERVER_NAME_FORMAT, domain, service);
+            String serverID = getServiceID(domain, service);
             String serverName = InetAddress.getLocalHost().getHostName();
-            URI serverURI = getRestURI(serverName, REST_PORT); //URI.create(String.format(SERVER_URI_FMT, serverName, PORT));
+            URI serverURI = getRestURI(serverName, REST_PORT);
 
             Discovery ds = Discovery.getInstance();
             ds.announce(serverID, serverURI.toString());

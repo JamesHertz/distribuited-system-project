@@ -11,9 +11,6 @@ import jakarta.inject.Singleton;
 public class RestUsersResource extends RestResource implements UsersService {
 
 	final Users impl;
-	public RestUsersResource() {
-		this(null);
-	}
 
 
 	public RestUsersResource(Users impl) {
@@ -30,11 +27,6 @@ public class RestUsersResource extends RestResource implements UsersService {
 		return super.fromJavaResult( impl.getUser(name, pwd));
 	}
 
-	//@Override
-	//public void verifyPassword(String name, String pwd) {
-	//	super.fromJavaResult( impl.verifyPassword(name, pwd));
-	//}
-	
 	@Override
 	public User updateUser(String name, String pwd, User user) {
 		return super.fromJavaResult( impl.updateUser(name, pwd, user) );
