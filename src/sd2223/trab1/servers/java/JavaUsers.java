@@ -16,7 +16,8 @@ import sd2223.trab1.clients.ClientFactory;
 import sd2223.trab1.discovery.Discovery;
 import sd2223.trab1.utils.Formatter;
 
-public class JavaUsers implements Users {
+public class JavaUsers extends JavaService implements Users {
+	private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
 	private final Map<String,User> users;
 	private final String domain;
 
@@ -24,7 +25,6 @@ public class JavaUsers implements Users {
 		this.users = new HashMap<>();
 		this.domain = domain;
 	}
-	private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
 
 	@Override
 	public Result<String> createUser(User user) {
@@ -46,10 +46,14 @@ public class JavaUsers implements Users {
 		}
 
 		var userAddress =  Formatter.makeUserAddress( user.getName() , this.domain );
-
-		// TODO: make this persistent :)
-		var feedsServer = this.getMyFeedsServer();
-		feedsServer.createFeed( userAddress );
+		/*
+			var feedsServer = this.getMyFeedsServer();
+			feedsServer.createFeed( userAddress );
+		 */
+		super.addRequest(
+				this.domain,
+				server -> server.createFeed( userAddress )
+		);
 		return Result.ok( userAddress );
 	}
 
@@ -144,9 +148,16 @@ public class JavaUsers implements Users {
 		synchronized ( users ) {
 			users.remove(name);
 		}
-
-		var server = this.getMyFeedsServer();
-		server.removeFeed( Formatter.makeUserAddress(name, this.domain) );
+		/*
+			var server = this.getMyFeedsServer();
+			server.removeFeed( Formatter.makeUserAddress(name, this.domain) );
+		 */
+		super.addRequest(
+				this.domain,
+				server -> server.removeFeed(
+						Formatter.makeUserAddress(name, this.domain)
+				)
+		);
 		return Result.ok( user );
 	}
 
@@ -187,10 +198,12 @@ public class JavaUsers implements Users {
 		}
 	}
 
-	private Feeds getMyFeedsServer(){
-		var ds = Discovery.getInstance();
-		URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(this.domain, Formatter.FEEDS_SERVICE), 1);
-		return ClientFactory.getFeedsClient(serverURIs[0]);
-	}
+	/*
+		private Feeds getMyFeedsServer(){
+			var ds = Discovery.getInstance();
+			URI[] serverURIs = ds.knownUrisOf(Formatter.getServiceID(this.domain, Formatter.FEEDS_SERVICE), 1);
+			return ClientFactory.getFeedsClient(serverURIs[0]);
+		}
+	 */
 
 }

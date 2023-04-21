@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 import static sd2223.trab1.api.java.Result.ErrorCode;
 
 // next test 4a
-public class JavaFeeds implements Feeds {
+public class JavaFeeds extends JavaService implements Feeds {
 
     private static final Logger Log = Logger.getLogger(JavaFeeds.class.getName());
 
@@ -62,9 +62,16 @@ public class JavaFeeds implements Feeds {
 
             userInfo.getServerSubscribers()
                     .forEach( domain -> {
-                        var feedServer = this.getFeedServer(domain);
-                        assert feedServer != null; // by now :)
-                        var e = feedServer.createExtFeedMessage(user, msg);
+                        /*
+                            var feedServer = this.getFeedServer(domain);
+                            assert feedServer != null; // by now :)
+                            var e = feedServer.createExtFeedMessage(user, msg);
+                         */
+                         super.addRequest(
+                                 domain,
+                                 server -> server.createExtFeedMessage(user, msg),
+                                 true // forceBackground
+                         );
                     });
             Log.info(String.format("Message %d created", mid));
             return Result.ok(mid);
@@ -93,9 +100,15 @@ public class JavaFeeds implements Feeds {
             if(msgs.remove(mid) != null){
                 userInfo.getServerSubscribers()
                         .forEach( domain -> {
-                            var server = this.getFeedServer(domain);
-                            assert server != null;
-                            server.removeExtFeedMessage(user, mid);
+                            /*
+                                var server = this.getFeedServer(domain);
+                                assert server != null;
+                                server.removeExtFeedMessage(user, mid);
+                             */
+                            super.addRequest(
+                                    domain,
+                                    server -> server.removeExtFeedMessage(user, mid)
+                            );
                         });
 
                 Log.info("Message " + mid + " removed.");
@@ -221,7 +234,7 @@ public class JavaFeeds implements Feeds {
         var localUser = err.value();
         var subUserInfo = this.getUser(userSub);
         if (subUserInfo == null) {
-            var feedsServer = this.getFeedServer(subUserAddress.domain());
+            var feedsServer = super.getFeedServer(subUserAddress.domain());
             // if we weren't able to contact the subUser feeds server of the subUser
             // domain is our domain ( which by now means it doesn't exist )
             if (feedsServer == null) {
@@ -448,14 +461,20 @@ public class JavaFeeds implements Feeds {
             synchronized (allUserInfo){
                 allUserInfo.remove(userSub);
             }
-            var server = this.getFeedServer( Formatter.getUserAddress(userSub).domain() );
-            assert server != null;
-            server.unsubscribeServer(this.domain, userSub);
+            /*
+                var server = this.getFeedServer( Formatter.getUserAddress(userSub).domain() );
+                assert server != null;
+                server.unsubscribeServer(this.domain, userSub);
+             */
+            super.addRequest(
+                    Formatter.getUserAddress(userSub).domain(),
+                    server -> server.unsubscribeServer(this.domain, userSub)
+            );
         }
     }
 
     private <T> Result<T> forwardRequest(String domain, Function<Feeds, Result<T>> request){
-        var server = this.getFeedServer(domain);
+        var server = super.getFeedServer(domain);
         if(server == null){
             Log.info("forwardRequest: server not found.");
             return Result.error( ErrorCode.NOT_FOUND );
@@ -485,9 +504,15 @@ public class JavaFeeds implements Feeds {
                 LocalUser aux = ((LocalUser) userInfo);
                 aux.getServerSubscribers()
                    .forEach( domain -> {
-                       var server = this.getFeedServer(domain);
-                       assert server != null;
-                       server.removeExtFeed(user);
+                       /*
+                           var server = this.getFeedServer(domain);
+                           assert server != null;
+                           server.removeExtFeed(user);
+                        */
+                       super.addRequest(
+                               domain,
+                               server -> server.removeExtFeed(user)
+                       );
                    });
                 aux.getSubscriptions()
                     .forEach(subUser -> {
@@ -539,14 +564,14 @@ public class JavaFeeds implements Feeds {
         return ClientFactory.getUsersClient(serverURIs[0]);
     }
 
+    /*
     private Feeds getFeedServer(String serverDomain) {
-        if (this.domain.equals(serverDomain)) return null;
-
         var ds = Discovery.getInstance();
         URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
         if (serverURI.length == 0) return null;
         return ClientFactory.getFeedsClient(serverURI[0]);
     }
+     */
 
     private static abstract class FeedUser {
         private final Map<Long, Message> userMessages;
@@ -594,11 +619,9 @@ public class JavaFeeds implements Feeds {
 
     private class RemoteUser extends FeedUser {
         public RemoteUser(List<Message> msgs){
-            super();
             var userMessages = this.getUserMessages();
             for(Message msg : msgs)
                 userMessages.put(msg.getId(), msg);
-
         }
         public synchronized boolean isOver(){
             return this.getUsersSubscribers().isEmpty();
