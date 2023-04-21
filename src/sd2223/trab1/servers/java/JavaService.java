@@ -12,10 +12,11 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
 
 public class JavaService {
 
+    private static final Logger Log = Logger.getLogger(JavaService.class.getName());
     private final Map<String, RequestConsumer> consumers;
 
     public JavaService() {
@@ -74,7 +75,8 @@ public class JavaService {
                 //     newRequests.notifyAll();
                  if (forceBackground || !(probablyWaiting && newRequests.isEmpty()
                          && this.executeRequest(request))) {
-                     System.out.println("Adding message to the queue...");
+                     Log.info("addRequest: +1 request");
+                     newRequests.add(request);
                      if (probablyWaiting)
                          newRequests.notifyAll();
                  }
@@ -91,6 +93,7 @@ public class JavaService {
         private boolean executeRequest(Request<?> req) {
             synchronized (remoteServer) {
                 var res = req.execute(remoteServer);
+                // Log.info("executeRequest: +1 execution.");
                 return res.isOK() || res.error() != Result.ErrorCode.TIMEOUT; // request failed
             }
         }
@@ -111,6 +114,7 @@ public class JavaService {
 
                 synchronized (requestQueue) {
                     requestQueue.remove();
+                    Log.info("loop: send +1 message  - remaining=" + requestQueue.size());
                 }
             }
         }
@@ -125,6 +129,7 @@ public class JavaService {
                 }
                 synchronized (requestQueue) {
                     requestQueue.addAll(newRequests);
+                    Log.info("getNewMessages: got " + newRequests.size() + " messages.");
                 }
                 newRequests.clear();
             }
