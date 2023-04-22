@@ -18,6 +18,8 @@ import sd2223.trab1.utils.Formatter;
 
 public class JavaUsers extends JavaService implements Users {
 	private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
+
+	//Map to save all Users from this domain
 	private final Map<String,User> users;
 	private final String domain;
 
@@ -26,6 +28,13 @@ public class JavaUsers extends JavaService implements Users {
 		this.domain = domain;
 	}
 
+	/**
+	 * 1- Checks if the user is valid
+	 * 2- Puts the user in our Map users,
+	 * 3- Make a request to our FeedsServer to create an empty feed for him
+	 * @param user
+	 * @return
+	 */
 	@Override
 	public Result<String> createUser(User user) {
 		Log.info("createUser : " + user);

@@ -44,6 +44,9 @@ public class RestClient {
         this.client = ClientBuilder.newClient(config);
     }
 
+    /**
+     * Function that tries to execute "func", for a maximum of MAX_RETRIES in case it fails
+     */
     protected <T> Result<T> reTry(Supplier<Result<T>> func) {
         for (int i = 0; i < MAX_RETRIES; i++)
             try {
@@ -66,6 +69,9 @@ public class RestClient {
         return this.toJavaResult(r, () -> r.readEntity(genericType));
     }
 
+    /**
+     * Verify if the response is valid, and return a Result with an appropriated response (ok with value, ok without value, error)
+     */
     private <T> Result<T> toJavaResult(Response r, Supplier<T> reader) {
         try {
             var status = r.getStatusInfo().toEnum();
