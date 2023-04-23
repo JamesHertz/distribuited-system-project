@@ -148,7 +148,7 @@ public class JavaFeeds extends JavaService implements Feeds {
 
 
     /**
-     * Gets a message on a user's feed by the id of the message (Can be a message of one of his subscriptions)
+     * Gets a message on a user's feed by the id of the message (Can be a message of a remote user)
      * @param user
      * @param mid
      * @return Message || Error
@@ -163,14 +163,14 @@ public class JavaFeeds extends JavaService implements Feeds {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
-        if(this.isForeignDomain( address.domain() )){
+        if(this.isForeignDomain( address.domain() )){ //If user is remote, ask the server if it has the message
             return this.forwardRequest(
                     address.domain(),
                     server -> server.getMessage(user, mid)
             );
         }
 
-        var userInfo = this.getLocalUser(user);
+        var userInfo = this.getLocalUser(user);// If it is local, go find the message
         if (userInfo != null) {
             Optional<Message> res;
             synchronized (userInfo) {
@@ -195,7 +195,7 @@ public class JavaFeeds extends JavaService implements Feeds {
     }
 
     /**
-     * Gets all the messages of a user's feed (Including messages of his subscriptions)
+     * Gets all the messages of a user's feed (Including messages of remote users)
      * @param user
      * @param time
      * @return List of messages || Error
@@ -234,7 +234,13 @@ public class JavaFeeds extends JavaService implements Feeds {
         }
     }
 
-
+    /**
+     * Subscribes the user to the userSub, given password to confirm identity of the user
+     * @param user
+     * @param userSub
+     * @param pwd
+     * @return
+     */
     @Override
     public Result<Void> subscribeUser(String user, String userSub, String pwd) {
         Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
@@ -255,10 +261,11 @@ public class JavaFeeds extends JavaService implements Feeds {
 
         var localUser = err.value();
         var subUserInfo = this.getUser(userSub);
+
+        // If user not in our Map of allUserInfo of this server, means he is not from here for sure
+        // (Cause every user when created, get into the map)
         if (subUserInfo == null) {
             var feedsServer = super.getFeedServer(subUserAddress.domain());
-            // if we weren't able to contact the subUser feeds server of the subUser
-            // domain is our domain ( which by now means it doesn't exist )
             if (feedsServer == null) {
                 Log.info("subUser doesn't exist or unable to contact with it's feeds server.");
                 return Result.error( ErrorCode.NOT_FOUND );
@@ -274,10 +281,10 @@ public class JavaFeeds extends JavaService implements Feeds {
                 subUserInfo =  allUserInfo.computeIfAbsent(userSub, k -> new RemoteUser(res.value()));
             }
         }
-
+        //Actually subscribing
         synchronized (localUser) {
             var subs = localUser.getSubscriptions();
-            subs.add(userSub); // great :)
+            subs.add(userSub);
         }
 
         synchronized (subUserInfo){
@@ -289,7 +296,13 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.error(ErrorCode.NO_CONTENT);
     }
 
-
+    /**
+     * Unsubscribes user from userSub's Subscribers
+     * @param user
+     * @param userSub
+     * @param pwd
+     * @return
+     */
     @Override
     public Result<Void> unSubscribeUser(String user, String userSub, String pwd) {
         Log.info(String.format("unSubscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
@@ -320,7 +333,11 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.error( ErrorCode.NO_CONTENT );
     }
 
-
+    /**
+     * Lists all Subscriptions of a user
+     * @param user
+     * @return
+     */
     @Override
     public Result<List<String>> listSubs(String user) {
         Log.info("listSubs: user=" + user);
@@ -349,6 +366,12 @@ public class JavaFeeds extends JavaService implements Feeds {
 
     }
 
+    /**
+     * Subscribes a remote server to a local user here
+     * @param domain
+     * @param user
+     * @return A List of messages of this user to the remote server
+     */
     @Override
     public Result<List<Message>> subscribeServer(String domain, String user) { // and external server subscribing in one of my local user
         Log.info("subscribeServer: domain=" + domain + " user=" + user);
@@ -379,6 +402,12 @@ public class JavaFeeds extends JavaService implements Feeds {
         }
     }
 
+    /**
+     * Operation made to be used by other servers when they want to post a message here
+     * @param user
+     * @param msg
+     * @return
+     */
     @Override
     public Result<Void> createExtFeedMessage(String user, Message msg) {
         Log.info(String.format("receiveMessage: user=%s ; msg=%s", user, msg));
@@ -398,6 +427,12 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.ok();
     }
 
+    /**
+     * Operation made to be used by other servers when they want to remove a message here
+     * @param user
+     * @param mid
+     * @return
+     */
     @Override
     public Result<Void> removeExtFeedMessage(String user, long mid) {
         Log.info(String.format("removeFeedMessage: user=%s ; mid=%d", user, mid));
@@ -423,7 +458,11 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.ok();
     }
 
-
+    /**
+     * Operation made when we want to remove an entire feed here (e.g. When a user is deleted)
+     * @param user
+     * @return
+     */
     @Override
     public Result<Void> removeFeed(String user) {
         Log.info("removeFeed: user=" + user);
@@ -435,7 +474,11 @@ public class JavaFeeds extends JavaService implements Feeds {
 
         return doRemove(user);
     }
-
+    /**
+     * Operation made by a remote server, when we want to remove an entire feed here (e.g. When a user is deleted)
+     * @param user
+     * @return
+     */
     @Override
     public Result<Void> removeExtFeed(String user) {
         Log.info("removeFeed: user=" + user);
@@ -448,6 +491,12 @@ public class JavaFeeds extends JavaService implements Feeds {
         return doRemove(user);
     }
 
+    /**
+     * Unsubscribes a server for a given user (This method is always called remotely)
+     * @param domain
+     * @param user
+     * @return
+     */
     @Override
     public Result<Void> unsubscribeServer(String domain, String user) {
         Log.info(String.format("unsubscribeServer: domain=%s ; user=%s", domain, user));
@@ -471,6 +520,11 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.error( ErrorCode.NOT_FOUND );
     }
 
+    /**
+     * Removes user from userSub's subscribers
+     * @param user
+     * @param userSub
+     */
     private void removeFromSubscribers(String user, String userSub){
         var userInfo = this.getUser(userSub);
         assert  userInfo != null;
@@ -478,23 +532,27 @@ public class JavaFeeds extends JavaService implements Feeds {
             var subs = userInfo.getUsersSubscribers();
             subs.remove(user);
         }
+        //If no more people from here is subscribed to this guy, removes him from our allUserInfo
         if(userInfo instanceof RemoteUser &&
                 ((RemoteUser) userInfo).isOver()){
             synchronized (allUserInfo){
                 allUserInfo.remove(userSub);
             }
-            /*
-                var server = this.getFeedServer( Formatter.getUserAddress(userSub).domain() );
-                assert server != null;
-                server.unsubscribeServer(this.domain, userSub);
-             */
             super.addRequest(
                     Formatter.getUserAddress(userSub).domain(),
+                    //And asks the other server to unsubscribe us
                     server -> server.unsubscribeServer(this.domain, userSub)
             );
         }
     }
 
+    /**
+     * Returns the result of the request to the given domain server
+     * @param domain
+     * @param request
+     * @return
+     * @param <T>
+     */
     private <T> Result<T> forwardRequest(String domain, Function<Feeds, Result<T>> request){
         var server = super.getFeedServer(domain);
         if(server == null){
@@ -505,6 +563,11 @@ public class JavaFeeds extends JavaService implements Feeds {
         return request.apply(server);
     }
 
+    /**
+     * Used when deleting a User
+     * @param user
+     * @return
+     */
     private Result<Void> doRemove(String user){
         var userInfo = getUser(user);
         if (userInfo == null) {
@@ -513,32 +576,32 @@ public class JavaFeeds extends JavaService implements Feeds {
         }
 
         synchronized (userInfo){
-            userInfo.getUsersSubscribers()
+            userInfo.getUsersSubscribers() //For all my subscribers
                     .forEach(addr -> {
-                        LocalUser local = this.getLocalUser(addr);
+                        LocalUser local = this.getLocalUser(addr); //(Local subs only)
                         assert local != null;
                         synchronized (local){
                             var subs = local.getSubscriptions();
-                            subs.remove(user);
+                            subs.remove(user); //Will delete this user from their subscriptions
+                            // (Note that when deleting the user of their subscriptions, they cannot access this user's feed anymore,
+                            // therefore deletes also all messages related to this user from all users)
                         }
                     });
+
+            //This method will execute in other servers eventually, so we need to make sure that
+            // we go on from here if we are in the main server of the user being deleted
             if(userInfo instanceof LocalUser){
                 LocalUser aux = ((LocalUser) userInfo);
-                aux.getServerSubscribers()
+                aux.getServerSubscribers() //Now taking care of remote subs
                    .forEach( domain -> {
-                       /*
-                           var server = this.getFeedServer(domain);
-                           assert server != null;
-                           server.removeExtFeed(user);
-                        */
                        super.addRequest(
                                domain,
-                               server -> server.removeExtFeed(user)
+                               server -> server.removeExtFeed(user) //Telling them that we want to remove the feed of this user
                        );
                    });
                 aux.getSubscriptions()
                     .forEach(subUser -> {
-                        this.removeFromSubscribers(user, subUser);
+                        this.removeFromSubscribers(user, subUser);//And Remove
                     });
             }
         }
@@ -631,6 +694,10 @@ public class JavaFeeds extends JavaService implements Feeds {
             return serverSubscribers;
         }
 
+        /**
+         * Gets all messages of the user and of his subscriptions
+         * @return
+         */
         public Stream<Map<Long, Message>> getAllFeedMessages() {
             return Stream.concat(
                     Stream.of(this.getUserMessages()),

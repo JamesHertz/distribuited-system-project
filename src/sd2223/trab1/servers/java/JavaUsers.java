@@ -143,7 +143,7 @@ public class JavaUsers extends JavaService implements Users {
 	}
 
 	/**
-	 * Deletes a user given a name and a password, in case the info is correct
+	 * Deletes a user given a name and a password, in case the info is correct (Also delete all feeds info everywhere)
 	 * @param name
 	 * @param pwd
 	 * @return Deleted User || Error
@@ -172,10 +172,7 @@ public class JavaUsers extends JavaService implements Users {
 		synchronized ( users ) {
 			users.remove(name);
 		}
-		/*
-			var server = this.getMyFeedsServer();
-			server.removeFeed( Formatter.makeUserAddress(name, this.domain) );
-		 */
+		//Deleting feeds info...
 		super.addRequest(
 				this.domain,
 				server -> server.removeFeed(
