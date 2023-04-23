@@ -84,15 +84,6 @@ public interface FeedsService {
 	List<Message> getMessages(@PathParam(USER) String user, @QueryParam(TIME) long time);
 
 	/**
-	 * Creates a feed for a user in the feeds server.
-	 * The user domain should be the same as the feeds.
-	 * @param user user which feeds is created (format user@domain)
-	 */
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	void createFeed( String user );
-
-	/**
 	 * Subscribe a user.
 	 * A user must contact the server of her domain directly (i.e., this operation should not be
 	 * propagated to other domain)
@@ -138,38 +129,99 @@ public interface FeedsService {
 	@Produces(MediaType.APPLICATION_JSON)
 	List<String> listSubs(@PathParam(USER) String user);
 
+	// FROM HERE ONE THE LIST OF OPERATIONS WE'VE ADDED ;)
+
+	/**
+	 * Creates a feed for a user in the feeds server.
+	 * The user domain should be the same as the feeds.
+	 * @param user the user address of the user to be created (user@domain)
+	 */
+	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	void createFeed( String user );
+
+	/**
+	 * Deletes the feeds of the user that belongs to this domain (we've named it LocalUser)
+	 * @param user the user address  (user@domain)
+	 * @returns 200 if ok,
+	 *          404 if the user doesn't exist,
+	 *          400 if the user address is invalid or if the domain,
+	 *              of the address is not the same as of this server
+	 */
+	@DELETE
+	@Path("/{" + USER + "}")
+	void removeFeed(@PathParam(USER) String user);
+
 	/**
 	 * Subscribe an outsider feeds server to a user of the receiving feeds.
 	 * This means this server will be notified whenever a message is posted
 	 * in this user feeds.
-	 * @param domain
-	 * @param user
+	 * @param domain the domain of the server
+	 * @param user user to subscribe
+	 * @returns 200 a list with all the messages of the user so far,
+	 *          404 if the user doesn't exist,
+	 *          400 if the user address is invalid o if it's domain is the same as this servers.
+	 *
 	 */
 	@POST
 	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
 	@Produces(MediaType.APPLICATION_JSON)
 	List<Message> subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
 
+	/**
+	 *  Unsubscribe a server from a user.  (This means this server will stop receiving the
+	 *  messages that this user posts)
+	 *
+	 * @param domain domain of the feeds server
+	 * @param user user address (user@domain)
+	 *
+	 */
+	@DELETE
+	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
+	void unsubscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
+
+	/**
+	 * Creates a message on the external user feed ( cache of the feed of a user that
+	 * doesn't belong to this domain)
+	 * @param user user address (user@domain)
+	 * @param msg message id
+	 * @returns 200 if ok
+	 *          404 if the user does exist
+	 *          400 if the user address is invalid or if the domain in it is the same as
+	 *              the one of this feeds server
+	 */
 	@POST
 	@Path(EXTERNAL + "/{" + USER +"}")
 	@Consumes(MediaType.APPLICATION_JSON)
 	void createExtFeedMessage(@PathParam(USER) String user, Message msg);
 
+	/**
+	 *  Removes a message from the external user feed (cache of the feed of a user that
+	 *  doesn't long to the domain of this feed server)
+	 * @param user user address (user@domain)
+	 * @param mid message id
+	 * @returns  200 if ok,
+	 *           404 if the user or the message doesn't,
+	 *           400 if user address is invalid of if the domain belongs
+	 *               is the same as this feed server domain
+	 */
 	@DELETE
 	@Path(EXTERNAL + "/{" + USER +"}/{" + MID + "}")
 	void removeExtFeedMessage(@PathParam(USER) String user, @PathParam(MID) long mid);
-	// feeds/external/<user-id>
-	// external/<user-id>/mid
 
-	@DELETE
-	@Path("/{" + USER + "}")
-	void removeFeed(@PathParam(USER) String user);
 
+	/**
+	 * Removes the feed of an external user (cache of the feed of a user that doesn't
+	 * belong to this domain) and removes it from the subscription list of all the users
+	 * of this domain that are subscribed at it.
+	 *
+	 * @param user user address (user@domain)
+	 * @returns 200 if ok
+	 *          404 if the user doesn't exist
+	 *          400 if the user address is invalid or if the domain of the address is the same as this.
+	 */
 	@DELETE
 	@Path(EXTERNAL + "/{" + USER + "}")
 	void removeExtFeed(@PathParam(USER) String user);
 
-	@DELETE
-	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
-	void unsubscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
 }

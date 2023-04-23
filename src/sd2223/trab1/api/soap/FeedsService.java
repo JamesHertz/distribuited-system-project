@@ -104,30 +104,79 @@ public interface FeedsService {
 	@WebMethod
 	List<String> listSubs(String user) throws FeedsException;
 
+
+	// FROM HERE ON THE METHODS WE'VE ADDED.
+	// NOTE: they are equivalent to the rest ones.
+
+	/**
+	 *  A feeds server subscribe to an user. (This means it will receive all the new messages
+	 *  of such user through createExtFeedMessage RPC)
+	 *
+	 * @param domain the one to subscribe
+	 * @param user the one to subscribe to
+	 * @return the list of all the message of the user
+	 * @throws  NOT_FOUND if the user does't exist
+	 *          BAD_REQUEST if the user address is invalid
+	 */
 	@WebMethod
 	List<Message>subscribeSever(String domain, String user) throws FeedsException;
 
+	/**
+	 * Unsubscribe the server from a user
+	 * @param domain the sever domain
+	 * @param user the user address (user@domain)
+	 * @throws NOT_FOUND if the user doesn't exist
+	 *         BAD_REQUEST if the user address is invalid
+	 */
 	@WebMethod
-	 void unsubscribeSever(String domain, String user) throws FeedsException;
+	 void unsubscribeServer(String domain, String user) throws FeedsException;
 
 	/**
 	 * Creates a feed for a user in the feeds server.
 	 * The user domain should be the same as the feeds.
 	 * @param user user which feeds is created (format user@domain)
+	 * @throws BAD_REQUEST if the user address is invalid or the user doesn't belong to this server
 	 */
 	@WebMethod
 	void createFeed(String user)  throws FeedsException;
 
-	@WebMethod
-	void createExtFeedMessage(String user, Message msg) throws FeedsException;
-
-	@WebMethod
-	void removeExtFeedMessage(String user, long mid) throws FeedsException;
-
+	/**
+	 * Remove a feed
+	 * @param user user address
+	 * @throws NOT_FOUND if the user doesn't exist
+	 *         BAD_REQUEST if the user doesn't belong to this server
+	 */
 	@WebMethod
 	void removeFeed(String user)  throws FeedsException;
 
+	/**
+	 * Removes an feed of an external user (the cache of the user that doesn't belong to this server)
+	 * along with all subscriptions on it.
+	 * @param user user address (user@domain)
+	 * @throws NOT_FOUND if the user doesn't exist
+	 *         BAD_REQUEST if the address is invalid
+	 */
 	@WebMethod
 	void removeExtFeed(String user) throws FeedsException;
+
+	/**
+	 *  Creates a message in the cache feed of a user that doesn't belong to this server
+	 * @param user the user address (user@domain)
+	 * @param msg the new message
+	 * @throws NOT_FOUND if the user doesn't exist
+	 *         BAD_REQUEST if the user address is invalid
+	 */
+	@WebMethod
+	void createExtFeedMessage(String user, Message msg) throws FeedsException;
+
+	/**
+	 * Removes a message from the cache feed of a user that doesn't belong to this server
+	 * @param user user address (user@domain)
+	 * @param mid message id
+	 * @throws NOT_FOUND if the user doesn't exist
+	 *         BAD_REQUEST if the user address is invalid
+	 */
+	@WebMethod
+	void removeExtFeedMessage(String user, long mid) throws FeedsException;
 
 }

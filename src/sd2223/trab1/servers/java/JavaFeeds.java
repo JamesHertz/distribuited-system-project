@@ -180,10 +180,6 @@ public class JavaFeeds extends JavaService implements Feeds {
                         .findFirst();
             }
 
-            //  users@domain                  feed@domain
-            // addUser(username)     -->   createFeed(useraddress)
-            // removeUser(username)  -->   removeFeed(useraddress)
-            // requests
             if(res.isPresent()) {
                 Log.info("Message " + mid + " found.");
                 return Result.ok(res.get());
@@ -511,8 +507,10 @@ public class JavaFeeds extends JavaService implements Feeds {
         if(userInfo != null ){
             synchronized (userInfo){
                 var serverSubs = userInfo.getServerSubscribers();
-                if (serverSubs.remove(domain)) return Result.ok();
-                Log.info("serverSubs: " + serverSubs);
+                if (serverSubs.remove(domain)) {
+                    Log.info("Subscription of [ " + domain + " -> " + user + "] removed.");
+                    return Result.ok();
+                }
             }
         }
 
@@ -649,16 +647,7 @@ public class JavaFeeds extends JavaService implements Feeds {
         return ClientFactory.getUsersClient(serverURIs[0]);
     }
 
-    /*
-    private Feeds getFeedServer(String serverDomain) {
-        var ds = Discovery.getInstance();
-        URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
-        if (serverURI.length == 0) return null;
-        return ClientFactory.getFeedsClient(serverURI[0]);
-    }
-     */
-
-    private static abstract class FeedUser {
+    private static abstract class FeedUser { // represents a feed of a user (local or remote)
         private final Map<Long, Message> userMessages;
         private final Set<String> usersSubscribers;
 
@@ -676,6 +665,9 @@ public class JavaFeeds extends JavaService implements Feeds {
         }
     }
 
+    // the feed of a Local user which is a user
+    // that effective belongs to this server
+    // (this means a user whose domain is the same as this)
     private class LocalUser extends FeedUser {
         private final Set<String> subscriptions;
         private final Set<String> serverSubscribers;
@@ -696,7 +688,7 @@ public class JavaFeeds extends JavaService implements Feeds {
 
         /**
          * Gets all messages of the user and of his subscriptions
-         * @return
+         * @return a list of Map<String, Message> from the user a user and all its subscriptions.
          */
         public Stream<Map<Long, Message>> getAllFeedMessages() {
             return Stream.concat(
@@ -706,12 +698,20 @@ public class JavaFeeds extends JavaService implements Feeds {
         }
     }
 
+    // It's the cache of a user that doesn't belong to this feeds server
+    // but in which at least one of the users that does belong to this server
+    // is subscribed to.
     private class RemoteUser extends FeedUser {
         public RemoteUser(List<Message> msgs){
+            super();
             var userMessages = this.getUserMessages();
             for(Message msg : msgs)
                 userMessages.put(msg.getId(), msg);
         }
+
+        /**
+         * @return true if these user has no more subscriptions (so we can delete this cache :>)
+         */
         public synchronized boolean isOver(){
             return this.getUsersSubscribers().isEmpty();
         }

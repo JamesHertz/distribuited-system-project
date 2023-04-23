@@ -31,10 +31,11 @@ public class JavaService {
     /**
      * Adds a RequestConsumer to our map (If it isn't there already), with the domain's feedserver.
      * Then adds the actual request to the RequestConsumer
-     * @param domain
-     * @param request
-     * @param forceBackground
-     * @param <T>
+     * @param domain domain of the feeds server
+     * @param request the request to be executed
+     * @param forceBackground to force the request to be executed in the background
+     *                        (otherwise it would do a test to decide if it would or not be executed in such a way)
+     * @param <T> whatever the request returns
      */
     public <T> void addRequest(String domain, Request<T> request, boolean forceBackground) {
         RequestConsumer aux;
@@ -43,7 +44,7 @@ public class JavaService {
                 return new RequestConsumer(this.getFeedServer(domain));
             });
         }
-        //Ads the actual request to the Request consumer
+        // Adds the actual request to the Request consumer
         aux.addRequest(request, forceBackground);
     }
 
@@ -54,6 +55,7 @@ public class JavaService {
         return ClientFactory.getFeedsClient(serverURI[0]);
     }
 
+    // represents a request to a feed server
     @FunctionalInterface
     interface Request<T> {
         Result<T> execute(Feeds server);
@@ -70,7 +72,6 @@ public class JavaService {
         //Acts like a waiting room for the requests
         private final Queue<Request<?>> newRequests;
         private final Feeds remoteServer;
-        // private final AtomicBoolean waitingForMessages;
 
 
         /**
@@ -81,7 +82,7 @@ public class JavaService {
             this.remoteServer = remoteServer;
             this.requestQueue = new LinkedList<>();
             this.newRequests = new LinkedList<>();
-            // this.waitingForMessages = new AtomicBoolean(false);
+            // launches a background thread
             new Thread(
                     this::loop
             ).start();
@@ -90,16 +91,15 @@ public class JavaService {
         /**
          * Adds the request to this specific RequestConsumer
          * @param request
-         * @param forceBackground
+         * @param forceBackground  true if the request is supposed to be put in the requestQueue (and not perform a test in the foreground to such decision)
          */
         public void addRequest(Request<?> request, boolean forceBackground) {
             boolean probablyWaiting = this.requestQueueIsEmpty(); //If the queue of requests is empty, means it is probablyWaiting for new requests
             synchronized (newRequests) {
                 // if the queue is empty try to send the request if it fails add it to the queue
                  if (    forceBackground //If we force the request to go, it goes
-                         || !(probablyWaiting
-                         && newRequests.isEmpty()
-                         && this.executeRequest(request)) //Tries to execute, if it fails with timeout, means that there was some connection error, so add to queue to try again later
+                         || !( probablyWaiting && newRequests.isEmpty()
+                         && this.executeRequest(request) ) //Tries to execute, if it fails with timeout, means that there was some connection error, so add to queue to try again later
                  ) {
                      Log.info("addRequest: +1 request");
                      newRequests.add(request);
@@ -117,15 +117,15 @@ public class JavaService {
         }
 
         /**
-         * Auxiliar method to see if the request can execute (Don't give timeout responses)
-         * @param req
-         * @return true if executes, otherwise false
+         * Auxiliary method to see if the request can execute (Don't give timeout responses)
+         * @param req request to be executed
+         * @return true if executes (request was receive and answer by the other side), otherwise false
          */
         private boolean executeRequest(Request<?> req) {
             synchronized (remoteServer) {
                 var res = req.execute(remoteServer);
                 // Log.info("executeRequest: +1 execution.");
-                return res.isOK() || res.error() != Result.ErrorCode.TIMEOUT; // request failed
+                return res.isOK() || res.error() != Result.ErrorCode.TIMEOUT; // was not processed by the remote server
             }
         }
 
@@ -138,7 +138,7 @@ public class JavaService {
                 if (this.requestQueueIsEmpty()) this.getNewRequest();
                 Request<?> req;
                 synchronized (requestQueue) {
-                    req = requestQueue.peek();
+                    req = requestQueue.peek(); // get the request in the front of the queue
                 }
 
                 var success = this.executeRequest(req);
@@ -159,17 +159,17 @@ public class JavaService {
          */
         private void getNewRequest() {
             synchronized (newRequests) {
-                while (newRequests.isEmpty()) { //While the newRequests queue is empty
+                while (newRequests.isEmpty()) { // While the newRequests queue is empty
                     try {
-                        newRequests.wait(); //Waits... Until it is notified by the addRequest method here
+                        newRequests.wait(); // Waits... Until it is notified by the addRequest method here
                     } catch (InterruptedException ignored) {
                     }
                 }
                 synchronized (requestQueue) {
-                    requestQueue.addAll(newRequests); //Adds all newRequests to the requestQueue
+                    requestQueue.addAll(newRequests); // Adds all newRequests to the requestQueue
                     Log.info("getNewMessages: got " + newRequests.size() + " messages.");
                 }
-                newRequests.clear(); //Then clear the newRequests
+                newRequests.clear(); // Then clear the newRequests
             }
         }
 
