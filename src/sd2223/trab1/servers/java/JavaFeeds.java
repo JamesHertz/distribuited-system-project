@@ -26,12 +26,14 @@ public class JavaFeeds extends JavaService implements Feeds {
     private final String domain;
     private final IDGenerator generator;
     private final Map<String, FeedUser> allUserInfo;
+    private Users myUsersServer;
     // private final Map<String, RemoteUser> remoteUsers;
 
     public JavaFeeds(String domain, long baseNumber) {
         this.domain = domain;
         this.generator = new IDGenerator(baseNumber);
         this.allUserInfo = new HashMap<>();
+        this.myUsersServer = null;
     }
 
     /**
@@ -614,7 +616,10 @@ public class JavaFeeds extends JavaService implements Feeds {
          var userInfo = this.getLocalUser(user);
          if(userInfo == null) return Result.error( ErrorCode.NOT_FOUND );
          var username = Formatter.getUserAddress(user).username();
-         var res = this.getMyUsersServer().verifyPassword(username, pwd);
+         Result<Void> res;
+         synchronized (this){
+            res = this.getMyUsersServer().verifyPassword(username, pwd);
+         }
          return res.isOK() ? Result.ok(userInfo) : Result.error( res.error() );
      }
 
@@ -635,9 +640,10 @@ public class JavaFeeds extends JavaService implements Feeds {
     }
 
     private Users getMyUsersServer() {
-        var server = this.getUserServer(this.domain);
-        assert server != null;
-        return server;
+        if(this.myUsersServer == null){
+            this.myUsersServer = this.getUserServer(this.domain);
+        }
+        return this.myUsersServer;
     }
 
     private Users getUserServer(String serverDomain) {
