@@ -1,6 +1,5 @@
 package sd2223.trab1.servers.java;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,12 +7,9 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import sd2223.trab1.api.User;
-import sd2223.trab1.api.java.Feeds;
 import sd2223.trab1.api.java.Result;
 import sd2223.trab1.api.java.Result.ErrorCode;
 import sd2223.trab1.api.java.Users;
-import sd2223.trab1.clients.ClientFactory;
-import sd2223.trab1.discovery.Discovery;
 import sd2223.trab1.utils.Formatter;
 
 public class JavaUsers extends JavaService implements Users {
@@ -33,7 +29,7 @@ public class JavaUsers extends JavaService implements Users {
 	 * 2- Puts the user in our Map users,
 	 * 3- Make a request to our FeedsServer to create an empty feed for him
 	 * @param user
-	 * @return
+	 * @return userAdress || Error
 	 */
 	@Override
 	public Result<String> createUser(User user) {
@@ -66,6 +62,12 @@ public class JavaUsers extends JavaService implements Users {
 		return Result.ok( userAddress );
 	}
 
+	/**
+	 * Gets the info of a user given a name and a password, in case the info is correct
+	 * @param name
+	 * @param pwd
+	 * @return User || Error
+	 */
 	@Override
 	public Result<User> getUser(String name, String pwd) {
 		Log.info("getUser : user = " + name + "; pwd = " + pwd);
@@ -93,6 +95,13 @@ public class JavaUsers extends JavaService implements Users {
 		return Result.ok(user);
 	}
 
+	/**
+	 * Updates the info of a user given a name, a password and the new user info, in case the info is correct
+	 * @param name
+	 * @param pwd
+	 * @param user
+	 * @return User || Error
+	 */
 	@Override
 	public Result<User> updateUser(String name, String pwd, User user) {
 		Log.info("updateUser: name=" + name + " ; pwd= " + pwd + " ; user=" + user) ;
@@ -133,6 +142,12 @@ public class JavaUsers extends JavaService implements Users {
 		}
 	}
 
+	/**
+	 * Deletes a user given a name and a password, in case the info is correct
+	 * @param name
+	 * @param pwd
+	 * @return Deleted User || Error
+	 */
 	@Override
 	public Result<User> deleteUser(String name, String pwd) {
 		Log.info("deleteUser: name=" + name + " ; pwd=" + pwd);
@@ -191,6 +206,12 @@ public class JavaUsers extends JavaService implements Users {
 		}
 	}
 
+	/**
+	 * Auxiliar method to verify if password of some user (given by the name) is correct
+	 * @param name
+	 * @param pwd
+	 * @return Ok Result || Error Result
+	 */
 	@Override
 	public Result<Void> verifyPassword(String name, String pwd) {
 		var res = getUser(name, pwd);
@@ -200,7 +221,11 @@ public class JavaUsers extends JavaService implements Users {
 			return Result.error( res.error() );
 	}
 
-
+	/**
+	 * Gets the user from our Map of users
+	 * @param username
+	 * @return
+	 */
 	private User getUser(String username){
 		synchronized (users){
 			return users.get(username);

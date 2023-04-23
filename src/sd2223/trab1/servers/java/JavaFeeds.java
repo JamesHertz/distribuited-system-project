@@ -34,6 +34,13 @@ public class JavaFeeds extends JavaService implements Feeds {
         this.allUserInfo = new HashMap<>();
     }
 
+    /**
+     * Post a message on the feed of the user, and his subscribers
+     * @param user
+     * @param pwd
+     * @param msg
+     * @return
+     */
     @Override
     public Result<Long> postMessage(String user, String pwd, Message msg) {
         Log.info("PostMessage: user=" + user + " ; pwd=" + pwd + " ; msg=" + msg);
@@ -62,15 +69,10 @@ public class JavaFeeds extends JavaService implements Feeds {
 
             userInfo.getServerSubscribers()
                     .forEach( domain -> {
-                        /*
-                            var feedServer = this.getFeedServer(domain);
-                            assert feedServer != null; // by now :)
-                            var e = feedServer.createExtFeedMessage(user, msg);
-                         */
                          super.addRequest(
                                  domain,
                                  server -> server.createExtFeedMessage(user, msg),
-                                 true // forceBackground
+                                 true // forceBackground (Iago's idea :D)
                          );
                     });
             Log.info(String.format("Message %d created", mid));
@@ -78,6 +80,13 @@ public class JavaFeeds extends JavaService implements Feeds {
         }
     }
 
+    /**
+     * Removes message from personal feed, and request the server os the subscribers to do the same (with a diferent method)
+     * @param user
+     * @param mid
+     * @param pwd
+     * @return
+     */
     @Override
     public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
         Log.info(String.format("remoteFromPersonalFeed: user=%s ; long=%d ; pwd=%s", user, mid, pwd));
@@ -100,11 +109,6 @@ public class JavaFeeds extends JavaService implements Feeds {
             if(msgs.remove(mid) != null){
                 userInfo.getServerSubscribers()
                         .forEach( domain -> {
-                            /*
-                                var server = this.getFeedServer(domain);
-                                assert server != null;
-                                server.removeExtFeedMessage(user, mid);
-                             */
                             super.addRequest(
                                     domain,
                                     server -> server.removeExtFeedMessage(user, mid)
@@ -120,6 +124,11 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.error(ErrorCode.NOT_FOUND);
     }
 
+    /**
+     * Creates a feed for a user (Just to add new users to the feeds database (Map allUserInfo))
+     * @param user
+     * @return
+     */
     @Override
     public Result<Void> createFeed(String user) {
         Log.info("createFeed: user=" + user);
@@ -138,6 +147,12 @@ public class JavaFeeds extends JavaService implements Feeds {
     }
 
 
+    /**
+     * Gets a message on a user's feed by the id of the message (Can be a message of one of his subscriptions)
+     * @param user
+     * @param mid
+     * @return Message || Error
+     */
     @Override
     public Result<Message> getMessage(String user, long mid) {
         Log.info(String.format("getMessage: user=%s ; mid=%d", user, mid));
@@ -179,6 +194,12 @@ public class JavaFeeds extends JavaService implements Feeds {
         return Result.error(ErrorCode.NOT_FOUND);
     }
 
+    /**
+     * Gets all the messages of a user's feed (Including messages of his subscriptions)
+     * @param user
+     * @param time
+     * @return List of messages || Error
+     */
     @Override
     public Result<List<Message>> getMessages(String user, long time) {
         Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
@@ -212,6 +233,7 @@ public class JavaFeeds extends JavaService implements Feeds {
             );
         }
     }
+
 
     @Override
     public Result<Void> subscribeUser(String user, String userSub, String pwd) {
