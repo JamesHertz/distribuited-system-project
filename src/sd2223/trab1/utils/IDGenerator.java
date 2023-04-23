@@ -2,6 +2,9 @@ package sd2223.trab1.utils;
 
 import java.util.Random;
 
+/**
+ *  Used to generate the messages ID
+ */
 public class IDGenerator {
 
     private static final long MAGIC_NUMBER = 256L;
