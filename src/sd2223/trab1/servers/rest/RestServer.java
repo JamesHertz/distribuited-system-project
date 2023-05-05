@@ -8,6 +8,7 @@ import sd2223.trab1.servers.rest.resources.RestFeedsResource;
 import sd2223.trab1.servers.rest.resources.RestUsersResource;
 import sd2223.trab1.discovery.Discovery;
 
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
@@ -50,9 +51,9 @@ public class RestServer {
                 }
             }
 
-            JdkHttpServerFactory.createHttpServer(serverURI, config);
+            JdkHttpServerFactory.createHttpServer(serverURI, config, SSLContext.getDefault());
             System.out.printf("%s Server running %s service @ %s\n", serverName, service, serverURI);
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println(e.getMessage());
         }
 

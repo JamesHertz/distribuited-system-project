@@ -3,7 +3,11 @@ package sd2223.trab1.servers.soap;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.concurrent.Executors;
 
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
 import jakarta.xml.ws.Endpoint;
 import sd2223.trab1.discovery.Discovery;
 import sd2223.trab1.servers.java.JavaFeeds;
@@ -11,6 +15,8 @@ import sd2223.trab1.servers.java.JavaUsers;
 import sd2223.trab1.servers.soap.services.SoapFeedsWebService;
 import sd2223.trab1.servers.soap.services.SoapUsersWebService;
 import sd2223.trab1.utils.Formatter;
+
+import javax.net.ssl.SSLContext;
 
 import static sd2223.trab1.utils.Formatter.*;
 
@@ -41,10 +47,10 @@ public class SoapServer {
 
 			String serverID = Formatter.getServiceID(domain, service);
 			String serverName = InetAddress.getLocalHost().getHostName();
-			String serverURI = Formatter.getSoapURI(serverName, SOAP_PORT).toString();
+			var serverURI = Formatter.getSoapURI(serverName, SOAP_PORT);
 
 			Discovery ds = Discovery.getInstance();
-			ds.announce(serverID, serverURI);
+			ds.announce(serverID, serverURI.toString());
 
 			Object implementor = null;
 			switch (service) {
@@ -55,11 +61,19 @@ public class SoapServer {
 					System.exit(1);
 				}
 			}
+			var server = HttpsServer.create(new InetSocketAddress(serverURI.getHost(), serverURI.getPort()), 0);
+			server.setExecutor(Executors.newCachedThreadPool());
+			server.setHttpsConfigurator(new HttpsConfigurator(SSLContext.getDefault()));
+
+			var endpoint = Endpoint.create(implementor);
+
+			endpoint.publish(server.createContext(serverURI.getPath()));
+			server.start();
 
 			// Endpoint.publish(serverURI.replace(serverName, "0.0.0.0"), implementor);
-			Endpoint.publish(serverURI, implementor);
+			//Endpoint.publish(serverURI, implementor);
 			System.out.printf("%s Soap Server ready @ %s\n", service, serverURI);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			System.err.println(e.getMessage());
 		}
 
