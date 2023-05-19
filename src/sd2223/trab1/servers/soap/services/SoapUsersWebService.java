@@ -36,8 +36,8 @@ public class SoapUsersWebService extends SoapWebService<UsersException> implemen
 
 
 	@Override
-	public void updateUser(String name, String pwd, User user) throws UsersException {
-		super.fromJavaResult( impl.updateUser(name, pwd, user));
+	public User updateUser(String name, String pwd, User user) throws UsersException {
+		return super.fromJavaResult( impl.updateUser(name, pwd, user));
 	}
 
 	@Override
