@@ -48,7 +48,7 @@
 				<configuration>
 					<images>
 						<image>
-							<name>sd2223-trab1-${authors}</name>
+							<name>sd2223-trab2-${authors}</name>
 							<build>
 								<dockerFile>${project.basedir}/Dockerfile</dockerFile>
 							</build>

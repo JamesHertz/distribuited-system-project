@@ -3,8 +3,8 @@ FROM nunopreguica/sd2223tpbase
 # working directory inside docker image
 WORKDIR /home/sd
 
-# copy the sercificates
-COPY tls/*.jks /home/sd/
+# copy the cercificates
+COPY tls/*.jks tls/**/*.jks /home/sd/keystore/
 # copy the jar created by assembly to the docker image
 COPY target/*jar-with-dependencies.jar sd2223.jar
 
