@@ -29,8 +29,8 @@ REM     echo "ERROR: wrong number of arguments"
 REM     exit 1
 REM fi
 REM 
-REM #CMD="java -cp "$JAR_FILE" sd2223.trab1.server.RestServer $@"
-REM CMD="java -cp "$JAR_FILE" sd2223.trab1.servers.rest.RestServer $@"
+REM #CMD="java -cp "$JAR_FILE" sd2223.trab2.server.RestServer $@"
+REM CMD="java -cp "$JAR_FILE" sd2223.trab2.servers.rest.RestServer $@"
 REM 
 REM echo "running: $@"
 REM docker run --rm -it --network "$NETWORK" $EXPOSED  "$IMAGE" $CMD
@@ -59,7 +59,7 @@ if "%1%"=="-p" (
 if %1%=="" goto error
 if %2%=="" goto error
 
-set CMD=java -cp %JAR_FILE% sd2223.trab1.servers.rest.RestServer %*
+set CMD=java -cp %JAR_FILE% sd2223.trab2.servers.rest.RestServer %*
 echo "running: %*"
 docker run --rm -it --network %NETWORK% %EXPOSE%  %$IMAGE% %CMD%
 

@@ -22,17 +22,21 @@ echo
 cp cacerts "$USERS_KSTORE"
 
 i=0
-for server in ${servers[@]} ; do
+for server in "${servers[@]}" ; do
   pass="password-$i"
   ksfile="./$KEY_STORES/$server.jks"
   crtfile="./$CERTS/$server.cert"
+
+  # generate keystore (private+public key)
   keytool -alias "$server" -dname "cn=60198-61177, ou=TP2, o=SD2223, c=PT" \
       -genkeypair -storetype pkcs12 -storepass "$pass" -keyalg RSA \
       -validity 365 -keystore "$ksfile" -ext SAN="dns:$server"
 
+  # export certificate
   keytool -exportcert -alias "$server" -keystore "$ksfile" -file "$crtfile" \
-      -storepass "$pass" 
+      -storepass "$pass"
 
+  # import the certificate above the a keystore that will contain all the certificates of the server
   keytool -importcert -file "$crtfile" -alias "$server" -keystore "$USERS_KSTORE" \
       -storepass changeit -noprompt
 
@@ -44,7 +48,6 @@ aux=$(sed -e "s/\.\/$KEY_STORES/keystore/g" "$LOG_FILE")
 users=$(echo "$aux" | sed -e "/feeds/d" | tr '\n' ' ')
 feeds=$(echo "$aux" | sed -e "/users/d" | tr '\n' ' ')
 
-echo >> "$LOG_FILE"
 echo "users: $users" >> "$LOG_FILE"
 echo "feeds: $feeds" >> "$LOG_FILE"
 
