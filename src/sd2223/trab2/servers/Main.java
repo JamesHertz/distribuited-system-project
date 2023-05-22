@@ -1,5 +1,4 @@
 package sd2223.trab2.servers;
-import jakarta.ws.rs.core.Response;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
@@ -87,5 +86,6 @@ public class Main {
 
         Discovery ds = Discovery.getInstance();
         ds.announce(serverID, serverURI.toString());
+        System.out.println("annoucing :)");
     }
 }
