@@ -20,16 +20,16 @@ public interface Feeds {
 
     Result<List<String>> listSubs(String user);
 
-    Result<List<Message>> subscribeServer(String domain, String user);
+    Result<List<Message>> subscribeServer(String domain, String user, String secret);
 
-    Result<Void> createFeed(String user);
+    Result<Void> createFeed(String user, String secret);
 
-    Result<Void> createExtFeedMessage(String user, Message msg );
+    Result<Void> createExtFeedMessage(String user, String secret, Message msg);
 
-    Result<Void> removeExtFeedMessage(String user , long mid );
+    Result<Void> removeExtFeedMessage(String user , long mid, String secret);
 
-    Result<Void> removeFeed ( String user );
-    Result<Void> removeExtFeed ( String user );
+    Result<Void> removeFeed ( String user, String secret);
+    Result<Void> removeExtFeed ( String user, String secret);
 
-    Result<Void> unsubscribeServer(String domain, String user);
+    Result<Void> unsubscribeServer(String domain, String user, String secret);
 }

@@ -11,6 +11,7 @@ import sd2223.trab2.api.java.Result;
 import sd2223.trab2.api.java.Result.ErrorCode;
 import sd2223.trab2.api.java.Users;
 import sd2223.trab2.utils.Formatter;
+import sd2223.trab2.utils.Secret;
 
 public class JavaUsers extends JavaService implements Users {
 	private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
@@ -19,9 +20,11 @@ public class JavaUsers extends JavaService implements Users {
 	private final Map<String,User> users;
 	private final String domain;
 
+	private final String secret;
 	public JavaUsers(String domain){
 		this.users = new HashMap<>();
 		this.domain = domain;
+		this.secret = Secret.getSecret();
 	}
 
 	/**
@@ -57,7 +60,7 @@ public class JavaUsers extends JavaService implements Users {
 		 */
 		super.addRequest(
 				this.domain,
-				server -> server.createFeed( userAddress )
+				server -> server.createFeed( userAddress , secret )
 		);
 		return Result.ok( userAddress );
 	}
@@ -176,7 +179,7 @@ public class JavaUsers extends JavaService implements Users {
 		super.addRequest(
 				this.domain,
 				server -> server.removeFeed(
-						Formatter.makeUserAddress(name, this.domain)
+						Formatter.makeUserAddress(name, this.domain), secret
 				)
 		);
 		return Result.ok( user );

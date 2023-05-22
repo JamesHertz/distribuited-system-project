@@ -53,38 +53,38 @@ public class SoapFeedsWebService extends SoapWebService<FeedsException> implemen
     }
 
     @Override
-    public List<Message> subscribeSever(String domain, String user) throws FeedsException {
-        return super.fromJavaResult( impl.subscribeServer(domain, user) );
+    public List<Message> subscribeSever(String domain, String user, String secret) throws FeedsException {
+        return super.fromJavaResult( impl.subscribeServer(domain, user, secret) );
     }
 
     @Override
-    public void unsubscribeServer(String domain, String user) throws FeedsException {
-        super.fromJavaResult( impl.unsubscribeServer(domain, user) );
+    public void unsubscribeServer(String domain, String user, String secret) throws FeedsException {
+        super.fromJavaResult( impl.unsubscribeServer(domain, user, secret) );
     }
 
     @Override
-    public void createFeed(String user) throws FeedsException {
-        super.fromJavaResult( impl.createFeed( user ) );
+    public void createFeed(String user, String secret) throws FeedsException {
+        super.fromJavaResult( impl.createFeed( user, secret) );
     }
 
     @Override
-    public void createExtFeedMessage(String user, Message msg) throws FeedsException {
-        super.fromJavaResult( impl.createExtFeedMessage(user, msg) );
+    public void createExtFeedMessage(String user, String secret, Message msg) throws FeedsException {
+        super.fromJavaResult( impl.createExtFeedMessage(user, secret, msg) );
     }
 
     @Override
-    public void removeExtFeedMessage(String user, long mid) throws FeedsException {
-        super.fromJavaResult( impl.removeExtFeedMessage(user, mid) );
+    public void removeExtFeedMessage(String user, long mid, String secret) throws FeedsException {
+        super.fromJavaResult( impl.removeExtFeedMessage(user, mid, secret) );
     }
 
     @Override
-    public void removeFeed(String user) throws FeedsException {
-        super.fromJavaResult( impl.removeFeed(user) );
+    public void removeFeed(String user, String secret) throws FeedsException {
+        super.fromJavaResult( impl.removeFeed(user, secret) );
     }
 
     @Override
-    public void removeExtFeed(String user) throws FeedsException {
-        super.fromJavaResult( impl.removeExtFeed(user) );
+    public void removeExtFeed(String user, String secret) throws FeedsException {
+        super.fromJavaResult( impl.removeExtFeed(user, secret) );
     }
 
 }

@@ -17,8 +17,9 @@ public interface FeedsService {
 	String USERSUB = "userSub";
 	String SERVERSUB = "sub/server";
 	String EXTERNAL = "external";
-
 	String PATH = "/feeds";
+	String SECRET = "secret";
+
 	/**
 	 * Posts a new message in the feed, associating it to the feed of the specific user.
 	 * A message should be identified before publish it, by assigning an ID.
@@ -136,7 +137,7 @@ public interface FeedsService {
 	 */
 	@POST
 	@Consumes(MediaType.APPLICATION_JSON)
-	void createFeed( String user );
+	void createFeed( String user , @QueryParam(SECRET) String secret);
 
 	/**
 	 * Deletes the feeds of the user that belongs to this domain (we've named it LocalUser)
@@ -148,7 +149,7 @@ public interface FeedsService {
 	 */
 	@DELETE
 	@Path("/{" + USER + "}")
-	void removeFeed(@PathParam(USER) String user);
+	void removeFeed(@PathParam(USER) String user, @QueryParam(SECRET) String secret);
 
 	/**
 	 * Subscribe an outsider feeds server to a user of the receiving feeds.
@@ -164,7 +165,7 @@ public interface FeedsService {
 	@POST
 	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
 	@Produces(MediaType.APPLICATION_JSON)
-	List<Message> subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
+	List<Message> subscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user, @QueryParam(SECRET) String secret);
 
 	/**
 	 *  Unsubscribe a server from a user.  (This means this server will stop receiving the
@@ -176,7 +177,7 @@ public interface FeedsService {
 	 */
 	@DELETE
 	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
-	void unsubscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user );
+	void unsubscribeServer( @PathParam(DOMAIN) String domain, @PathParam(USER) String user,  @QueryParam(SECRET) String secret);
 
 	/**
 	 * Creates a message on the external user feed ( cache of the feed of a user that
@@ -191,7 +192,7 @@ public interface FeedsService {
 	@POST
 	@Path(EXTERNAL + "/{" + USER +"}")
 	@Consumes(MediaType.APPLICATION_JSON)
-	void createExtFeedMessage(@PathParam(USER) String user, Message msg);
+	void createExtFeedMessage(@PathParam(USER) String user,  @QueryParam(SECRET) String secret, Message msg);
 
 	/**
 	 *  Removes a message from the external user feed (cache of the feed of a user that
@@ -205,7 +206,7 @@ public interface FeedsService {
 	 */
 	@DELETE
 	@Path(EXTERNAL + "/{" + USER +"}/{" + MID + "}")
-	void removeExtFeedMessage(@PathParam(USER) String user, @PathParam(MID) long mid);
+	void removeExtFeedMessage(@PathParam(USER) String user, @PathParam(MID) long mid,  @QueryParam(SECRET) String secret);
 
 
 	/**
@@ -220,6 +221,6 @@ public interface FeedsService {
 	 */
 	@DELETE
 	@Path(EXTERNAL + "/{" + USER + "}")
-	void removeExtFeed(@PathParam(USER) String user);
+	void removeExtFeed(@PathParam(USER) String user,  @QueryParam(SECRET) String secret);
 
 }

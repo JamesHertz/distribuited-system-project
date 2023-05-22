@@ -11,7 +11,7 @@ public interface FeedsService {
 
 	static final String NAME = "feeds";
 	static final String NAMESPACE = "http://sd2223";
-	static final String INTERFACE = "sd2223.trab1.api.soap.FeedsService";
+	static final String INTERFACE = "sd2223.trab2.api.soap.FeedsService";
 	
 	/**
 	 * Posts a new message in the feed, associating it to the feed of the specific user.
@@ -119,7 +119,7 @@ public interface FeedsService {
 	 *          BAD_REQUEST if the user address is invalid
 	 */
 	@WebMethod
-	List<Message>subscribeSever(String domain, String user) throws FeedsException;
+	List<Message>subscribeSever(String domain, String user, String secret) throws FeedsException;
 
 	/**
 	 * Unsubscribe the server from a user
@@ -129,7 +129,7 @@ public interface FeedsService {
 	 *         BAD_REQUEST if the user address is invalid
 	 */
 	@WebMethod
-	 void unsubscribeServer(String domain, String user) throws FeedsException;
+	 void unsubscribeServer(String domain, String user, String secret) throws FeedsException;
 
 	/**
 	 * Creates a feed for a user in the feeds server.
@@ -138,7 +138,7 @@ public interface FeedsService {
 	 * @throws BAD_REQUEST if the user address is invalid or the user doesn't belong to this server
 	 */
 	@WebMethod
-	void createFeed(String user)  throws FeedsException;
+	void createFeed(String user, String secret)  throws FeedsException;
 
 	/**
 	 * Remove a feed
@@ -147,7 +147,7 @@ public interface FeedsService {
 	 *         BAD_REQUEST if the user doesn't belong to this server
 	 */
 	@WebMethod
-	void removeFeed(String user)  throws FeedsException;
+	void removeFeed(String user, String secret)  throws FeedsException;
 
 	/**
 	 * Removes an feed of an external user (the cache of the user that doesn't belong to this server)
@@ -157,7 +157,7 @@ public interface FeedsService {
 	 *         BAD_REQUEST if the address is invalid
 	 */
 	@WebMethod
-	void removeExtFeed(String user) throws FeedsException;
+	void removeExtFeed(String user, String secret) throws FeedsException;
 
 	/**
 	 *  Creates a message in the cache feed of a user that doesn't belong to this server
@@ -167,7 +167,7 @@ public interface FeedsService {
 	 *         BAD_REQUEST if the user address is invalid
 	 */
 	@WebMethod
-	void createExtFeedMessage(String user, Message msg) throws FeedsException;
+	void createExtFeedMessage(String user, String secret, Message msg) throws FeedsException;
 
 	/**
 	 * Removes a message from the cache feed of a user that doesn't belong to this server
@@ -177,6 +177,6 @@ public interface FeedsService {
 	 *         BAD_REQUEST if the user address is invalid
 	 */
 	@WebMethod
-	void removeExtFeedMessage(String user, long mid) throws FeedsException;
+	void removeExtFeedMessage(String user, long mid, String secret) throws FeedsException;
 
 }

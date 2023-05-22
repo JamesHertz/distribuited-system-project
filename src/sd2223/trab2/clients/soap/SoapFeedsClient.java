@@ -62,37 +62,37 @@ public class SoapFeedsClient extends SoapClient implements Feeds {
     }
 
     @Override
-    public Result<List<Message>> subscribeServer(String domain, String user) {
-        return super.reTry( () -> super.toJavaResult( () -> stub().subscribeSever(domain, user) ) );
+    public Result<List<Message>> subscribeServer(String domain, String user, String secret) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().subscribeSever(domain, user, secret) ) );
     }
 
     @Override
-    public Result<Void> createFeed(String user) {
-        return super.reTry( () -> super.toJavaResult( () -> stub().createFeed( user ) ) );
+    public Result<Void> createFeed(String user, String secret) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().createFeed( user, secret ) ) );
     }
 
     @Override
-    public Result<Void> createExtFeedMessage(String user, Message msg) {
-        return super.reTry( () -> super.toJavaResult( () -> stub().createExtFeedMessage(user, msg) ));
+    public Result<Void> createExtFeedMessage(String user, String secret, Message msg) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().createExtFeedMessage(user, secret, msg) ));
     }
 
     @Override
-    public Result<Void> removeExtFeedMessage(String user, long mid) {
-        return super.reTry( () -> super.toJavaResult( () -> stub().removeExtFeedMessage(user, mid) ));
+    public Result<Void> removeExtFeedMessage(String user, long mid, String secret) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().removeExtFeedMessage(user, mid, secret) ));
     }
 
     @Override
-    public Result<Void> removeFeed(String user) {
-        return super.reTry( () -> super.toJavaResult( () -> stub().removeFeed(user) ));
+    public Result<Void> removeFeed(String user, String secret) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().removeFeed(user, secret) ));
     }
 
     @Override
-    public Result<Void> removeExtFeed(String user) {
-        return super.reTry( () -> super.toJavaResult( () -> stub().removeExtFeed(user) ));
+    public Result<Void> removeExtFeed(String user, String secret) {
+        return super.reTry( () -> super.toJavaResult( () -> stub().removeExtFeed(user, secret) ));
     }
 
     @Override
-    public Result<Void> unsubscribeServer(String domain, String user) {
-         return super.reTry( () -> super.toJavaResult( () -> stub().unsubscribeServer(domain, user) ));
+    public Result<Void> unsubscribeServer(String domain, String user, String secret) {
+         return super.reTry( () -> super.toJavaResult( () -> stub().unsubscribeServer(domain, user, secret) ));
     }
 }

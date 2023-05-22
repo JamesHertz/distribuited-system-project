@@ -8,6 +8,7 @@ import sd2223.trab2.clients.ClientFactory;
 import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.utils.Formatter;
 import sd2223.trab2.utils.IDGenerator;
+import sd2223.trab2.utils.Secret;
 
 import java.net.URI;
 import java.util.*;
@@ -26,6 +27,7 @@ public class JavaFeeds extends JavaService implements Feeds {
     private final String domain;
     private final IDGenerator generator;
     private final Map<String, FeedUser> allUserInfo;
+    private final String secret;
     private Users myUsersServer;
     // private final Map<String, RemoteUser> remoteUsers;
 
@@ -34,6 +36,7 @@ public class JavaFeeds extends JavaService implements Feeds {
         this.generator = new IDGenerator(baseNumber);
         this.allUserInfo = new HashMap<>();
         this.myUsersServer = null;
+        this.secret = Secret.getSecret();
     }
 
     /**
@@ -73,7 +76,7 @@ public class JavaFeeds extends JavaService implements Feeds {
                     .forEach( domain -> {
                          super.addRequest(
                                  domain,
-                                 server -> server.createExtFeedMessage(user, msg),
+                                 server -> server.createExtFeedMessage(user, secret, msg),
                                  true // forceBackground (Iago's idea :D)
                          );
                     });
@@ -113,7 +116,7 @@ public class JavaFeeds extends JavaService implements Feeds {
                         .forEach( domain -> {
                             super.addRequest(
                                     domain,
-                                    server -> server.removeExtFeedMessage(user, mid)
+                                    server -> server.removeExtFeedMessage(user, mid, secret)
                             );
                         });
 
@@ -132,12 +135,17 @@ public class JavaFeeds extends JavaService implements Feeds {
      * @return
      */
     @Override
-    public Result<Void> createFeed(String user) {
-        Log.info("createFeed: user=" + user);
+    public Result<Void> createFeed(String user, String secret) {
+        Log.info(String.format("createFeed: user=%s ; secret=%s", user, secret));
         var address = Formatter.getUserAddress(user);
         if (address == null || this.isForeignDomain(address.domain())) {
             Log.info("Invalid user address.");
             return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        if(!this.secret.equals(secret)) {
+            Log.info("Bad secret.");
+            return Result.error(ErrorCode.FORBIDDEN);
         }
 
         synchronized (allUserInfo) {
@@ -270,7 +278,7 @@ public class JavaFeeds extends JavaService implements Feeds {
             }
 
             Result<List<Message>> res;
-            if (!(res = feedsServer.subscribeServer(this.domain, userSub)).isOK()) {
+            if (!(res = feedsServer.subscribeServer(this.domain, userSub, secret )).isOK()) {
                 Log.info("Could not subscribe server :(");
                 return Result.error(res.error());
             }
@@ -371,12 +379,17 @@ public class JavaFeeds extends JavaService implements Feeds {
      * @return A List of messages of this user to the remote server
      */
     @Override
-    public Result<List<Message>> subscribeServer(String domain, String user) { // and external server subscribing in one of my local user
-        Log.info("subscribeServer: domain=" + domain + " user=" + user);
+    public Result<List<Message>> subscribeServer(String domain, String user, String secret) { // and external server subscribing in one of my local user
+        Log.info(String.format("subscribeServer: domain=%s ; user=%s ; secret=%s", domain, user, secret));
         var address = Formatter.getUserAddress(user);
         if (address == null || this.isForeignDomain( address.domain() ) || !this.isForeignDomain(domain) ) {
             Log.info("Bad user address.");
             return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        if(!this.secret.equals(secret)) {
+            Log.info("Bad secret.");
+            return Result.error(ErrorCode.FORBIDDEN);
         }
 
         var userInfo = this.getLocalUser(user);
@@ -407,12 +420,17 @@ public class JavaFeeds extends JavaService implements Feeds {
      * @return
      */
     @Override
-    public Result<Void> createExtFeedMessage(String user, Message msg) {
-        Log.info(String.format("receiveMessage: user=%s ; msg=%s", user, msg));
+    public Result<Void> createExtFeedMessage(String user, String secret, Message msg) {
+        Log.info(String.format("receiveMessage: user=%s ; secret=%s ; msg=%s", user, secret, msg));
         var address = Formatter.getUserAddress(user);
         if( msg == null || address == null || !this.isForeignDomain(address.domain()) ) { // is it worthed worrying about msg fields being null??0
             Log.info("Bad request.");
             return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        if(!this.secret.equals(secret)) {
+            Log.info("Bad secret.");
+            return Result.error(ErrorCode.FORBIDDEN);
         }
 
         var userInfo = this.getUser(user);
@@ -432,12 +450,17 @@ public class JavaFeeds extends JavaService implements Feeds {
      * @return
      */
     @Override
-    public Result<Void> removeExtFeedMessage(String user, long mid) {
+    public Result<Void> removeExtFeedMessage(String user, long mid, String secret) {
         Log.info(String.format("removeFeedMessage: user=%s ; mid=%d", user, mid));
         var address = Formatter.getUserAddress(user);
         if(address == null || !this.isForeignDomain( address.domain() )){
             Log.info("Bad request.");
             return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        if(!this.secret.equals(secret)) {
+            Log.info("Bad secret.");
+            return Result.error(ErrorCode.FORBIDDEN);
         }
 
         var userInfo = this.getUser(user);
@@ -462,12 +485,19 @@ public class JavaFeeds extends JavaService implements Feeds {
      * @return
      */
     @Override
-    public Result<Void> removeFeed(String user) {
+    public Result<Void> removeFeed(String user, String secret) {
+        Log.info(String.format("removeFeed: user=%s ; secret=%s", user, secret));
+
         Log.info("removeFeed: user=" + user);
         var address = Formatter.getUserAddress(user);
         if(address == null || this.isForeignDomain( address.domain() ) ){
             Log.info("Bad address.");
             return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        if(!this.secret.equals(secret)) {
+            Log.info("Bad secret.");
+            return Result.error(ErrorCode.FORBIDDEN);
         }
 
         return doRemove(user);
@@ -478,12 +508,19 @@ public class JavaFeeds extends JavaService implements Feeds {
      * @return
      */
     @Override
-    public Result<Void> removeExtFeed(String user) {
+    public Result<Void> removeExtFeed(String user, String secret) {
+        Log.info(String.format("removeFeed: user=%s ; secret=%s", user, secret));
+
         Log.info("removeFeed: user=" + user);
         var address = Formatter.getUserAddress(user);
         if(address == null || !this.isForeignDomain( address.domain() ) ){
             Log.info("Bad address.");
             return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        if(!this.secret.equals(secret)) {
+            Log.info("Bad secret.");
+            return Result.error(ErrorCode.FORBIDDEN);
         }
 
         return doRemove(user);
@@ -496,13 +533,19 @@ public class JavaFeeds extends JavaService implements Feeds {
      * @return
      */
     @Override
-    public Result<Void> unsubscribeServer(String domain, String user) {
-        Log.info(String.format("unsubscribeServer: domain=%s ; user=%s", domain, user));
+    public Result<Void> unsubscribeServer(String domain, String user, String secret) {
+        Log.info(String.format("unsubscribeServer: domain=%s ; user=%s ; secret=%s", domain, user, secret));
+
         var address = Formatter.getUserAddress(user);
 
         if(address == null || this.isForeignDomain( address.domain() )){
             Log.info("Bad address.");
             return Result.error( ErrorCode.BAD_REQUEST );
+        }
+
+        if(!this.secret.equals(secret)) {
+            Log.info("Bad secret.");
+            return Result.error(ErrorCode.FORBIDDEN);
         }
 
         LocalUser userInfo = this.getLocalUser(user);
@@ -541,7 +584,7 @@ public class JavaFeeds extends JavaService implements Feeds {
             super.addRequest(
                     Formatter.getUserAddress(userSub).domain(),
                     //And asks the other server to unsubscribe us
-                    server -> server.unsubscribeServer(this.domain, userSub)
+                    server -> server.unsubscribeServer(this.domain, userSub, secret)
             );
         }
     }
@@ -596,7 +639,7 @@ public class JavaFeeds extends JavaService implements Feeds {
                    .forEach( domain -> {
                        super.addRequest(
                                domain,
-                               server -> server.removeExtFeed(user) //Telling them that we want to remove the feed of this user
+                               server -> server.removeExtFeed(user, secret) //Telling them that we want to remove the feed of this user
                        );
                    });
                 aux.getSubscriptions()

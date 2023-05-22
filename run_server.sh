@@ -5,8 +5,8 @@ JAR_FILE=sd2223.jar
 IMAGE=sd2223-trab1-60198-61177
 NETWORK=sd-proj1
 PORT=8080
-REST_SERVER="sd2223.trab1.servers.rest.RestServer"
-SOAP_SERVER="sd2223.trab1.servers.soap.SoapServer"
+REST_SERVER="sd2223.trab2.servers.rest.RestServer"
+SOAP_SERVER="sd2223.trab2.servers.soap.SoapServer"
 SERVER=
 
 while true

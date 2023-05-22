@@ -11,6 +11,7 @@ public class Formatter {
     public static final String SERVER_NAME_FORMAT = "%s:%s";
     public static final String USERS_SERVICE      = "users";
     public static final String FEEDS_SERVICE      = "feeds";
+    public static final String PROXY_SERVICE      = "proxy";
     public static final String USER_ADDRESS_SEP   = "@";
 
     // it's the address of a user

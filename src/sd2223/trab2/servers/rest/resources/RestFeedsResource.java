@@ -35,8 +35,8 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public void createFeed(String user) {
-        super.fromJavaResult( impl.createFeed(user) );
+    public void createFeed(String user, String secret) {
+        super.fromJavaResult( impl.createFeed(user, secret) );
     }
 
     @Override
@@ -55,34 +55,33 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public List<Message> subscribeServer(String domain, String user) {
-        return super.fromJavaResult( impl.subscribeServer(domain, user) );
+    public List<Message> subscribeServer(String domain, String user, String secret) {
+        return super.fromJavaResult( impl.subscribeServer(domain, user, secret) );
     }
 
     @Override
-    public void createExtFeedMessage(String user, Message msg) {
-        super.fromJavaResult( impl.createExtFeedMessage(user, msg) );
+    public void createExtFeedMessage(String user, String secret, Message msg) {
+        super.fromJavaResult( impl.createExtFeedMessage(user, secret, msg) );
     }
 
     @Override
-    public void removeExtFeedMessage(String user, long mid) {
-        super.fromJavaResult( impl.removeExtFeedMessage(user, mid) );
+    public void removeExtFeedMessage(String user, long mid, String secret) {
+        super.fromJavaResult( impl.removeExtFeedMessage(user, mid, secret) );
     }
 
     @Override
-    public void removeFeed(String user) {
-        super.fromJavaResult( impl.removeFeed(user) );
+    public void removeFeed(String user, String secret) {
+        super.fromJavaResult( impl.removeFeed(user, secret) );
     }
 
     @Override
-    public void removeExtFeed(String user) {
-        super.fromJavaResult( impl.removeExtFeed(user) );
+    public void removeExtFeed(String user, String secret) {
+        super.fromJavaResult( impl.removeExtFeed(user, secret) );
     }
 
     @Override
-    public void unsubscribeServer(String domain, String user) {
-        super.fromJavaResult( impl.unsubscribeServer(domain, user) );
+    public void unsubscribeServer(String domain, String user, String secret) {
+        super.fromJavaResult( impl.unsubscribeServer(domain, user, secret) );
     }
-
 
 }

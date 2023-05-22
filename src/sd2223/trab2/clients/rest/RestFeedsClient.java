@@ -67,10 +67,11 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<List<Message>> subscribeServer(String domain, String user) {
+    public Result<List<Message>> subscribeServer(String domain, String user, String secret) {
         return super.reTry( () -> {
             var r = target.path( FeedsService.SERVERSUB)
                     .path(domain).path(user)
+                    .queryParam(FeedsService.SECRET, secret)
                     .request()
                     .post(Entity.json(null));
             return super.toJavaResult(r, new GenericType<>(){});
@@ -78,10 +79,11 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<Void> unsubscribeServer(String domain, String user) {
+    public Result<Void> unsubscribeServer(String domain, String user, String secret) {
         return super.reTry( () -> {
             var r = target.path(FeedsService.SERVERSUB)
                     .path(domain).path(user)
+                    .queryParam(FeedsService.SECRET, secret)
                     .request()
                     .delete();
             return super.toJavaResult(r, Void.class);
@@ -89,19 +91,21 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<Void> createFeed(String user) {
+    public Result<Void> createFeed(String user, String secret) {
         return super.reTry( () -> {
-            var r = target.request()
+            var r = target.queryParam(FeedsService.SECRET, secret)
+                    .request()
                     .post(Entity.entity(user, MediaType.APPLICATION_JSON_TYPE));
             return super.toJavaResult(r, Void.class);
         });
     }
 
     @Override
-    public Result<Void> createExtFeedMessage(String user, Message msg) {
+    public Result<Void> createExtFeedMessage(String user, String secret, Message msg) {
         return super.reTry(() -> {
             var r = target.path(FeedsService.EXTERNAL)
                     .path(user)
+                    .queryParam(FeedsService.SECRET, secret)
                     .request()
                     .post(Entity.entity(msg, MediaType.APPLICATION_JSON_TYPE ));
             return super.toJavaResult(r, Void.class);
@@ -109,11 +113,12 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<Void> removeExtFeedMessage(String user, long mid) {
+    public Result<Void> removeExtFeedMessage(String user, long mid, String secret) {
         return super.reTry(() -> {
             var res = target.path(FeedsService.EXTERNAL)
                     .path(user)
                     .path(String.valueOf(mid))
+                    .queryParam(FeedsService.SECRET, secret)
                     .request()
                     .delete();
             return super.toJavaResult(res, Void.class);
@@ -121,9 +126,10 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<Void> removeFeed(String user) {
+    public Result<Void> removeFeed(String user, String secret) {
         return super.reTry(() -> {
             var res = target.path(user)
+                    .queryParam(FeedsService.SECRET, secret)
                     .request()
                     .delete();
 
@@ -132,10 +138,11 @@ public class RestFeedsClient extends RestClient implements Feeds {
     }
 
     @Override
-    public Result<Void> removeExtFeed(String user) {
+    public Result<Void> removeExtFeed(String user, String secret) {
         return super.reTry(() -> {
             var res = target.path(FeedsService.EXTERNAL)
                     .path(user)
+                    .queryParam(FeedsService.SECRET, secret)
                     .request()
                     .delete();
 
