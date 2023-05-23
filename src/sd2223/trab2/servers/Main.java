@@ -13,13 +13,16 @@ import sd2223.trab2.utils.Secret;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 
 import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 import static sd2223.trab2.utils.Formatter.*;
 
 
+// last-test: 104b
 public class Main {
     public static void main(String[] args) throws UnknownHostException {
+        System.out.println("args: " + Arrays.toString(args));
         var parser = ArgumentParsers.newFor("MyProj2").build()
                 .defaultHelp(true).description("our second distributed system project");
 
@@ -80,12 +83,11 @@ public class Main {
             serverURI = getRestURI(serverName, REST_PORT);
             RestServer.runServer(serverURI, service, javaService);
         } else {
-            serverURI = getRestURI(serverName, SOAP_PORT);
+            serverURI = getSoapURI(serverName, SOAP_PORT);
             SoapServer.runServer(serverURI, service, javaService);
         }
 
         Discovery ds = Discovery.getInstance();
         ds.announce(serverID, serverURI.toString());
-        System.out.println("annoucing :)");
     }
 }

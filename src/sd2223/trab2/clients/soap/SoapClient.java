@@ -14,6 +14,9 @@ import sd2223.trab2.api.java.Result;
 import sd2223.trab2.api.java.Result.ErrorCode;
 import jakarta.xml.ws.BindingProvider;
 import jakarta.xml.ws.WebServiceException;
+import sd2223.trab2.tls.InsecureHostnameVerifier;
+
+import javax.net.ssl.HttpsURLConnection;
 
 /**
 * 

@@ -4,8 +4,8 @@ import java.net.URI;
 
 public class Formatter {
 
-    public static final String REST_SERVER_FMT = "http://%s:%s/rest";
-    public static final String SOAP_SERVER_FMT = "http://%s:%s/soap";
+    public static final String REST_SERVER_FMT = "https://%s:%s/rest";
+    public static final String SOAP_SERVER_FMT = "https://%s:%s/soap";
     public static final int REST_PORT = 8080;
     public static final int SOAP_PORT = 8081;
     public static final String SERVER_NAME_FORMAT = "%s:%s";
