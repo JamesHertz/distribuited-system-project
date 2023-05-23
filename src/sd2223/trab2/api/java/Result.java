@@ -21,7 +21,8 @@ public interface Result<T> {
 	 * NOT_FOUND - an access occurred to something that does not exist
 	 * INTERNAL_ERROR - something unexpected happened
 	 */
-	enum ErrorCode{ OK, CONFLICT, NOT_FOUND, BAD_REQUEST, NO_CONTENT, FORBIDDEN, INTERNAL_ERROR, NOT_IMPLEMENTED, TIMEOUT};
+	enum ErrorCode{ OK, CONFLICT, NOT_FOUND, BAD_REQUEST, FORBIDDEN, INTERNAL_ERROR, REDIRECTED, NOT_IMPLEMENTED, TIMEOUT, NO_CONTENT};
+
 	
 	/**
 	 * Tests if the result is an error.
@@ -41,10 +42,10 @@ public interface Result<T> {
 	 * 
 	 */
 	ErrorCode error();
-	
+
 	/**
 	 * Convenience method for returning non error results of the given type
-	 * @param Class of value of the result
+	 * @param <T> of value of the result
 	 * @return the value of the result
 	 */
 	static <T> Result<T> ok( T result ) {
@@ -64,8 +65,35 @@ public interface Result<T> {
 	 * @return
 	 */
 	static <T> Result<T> error(ErrorCode error) {
-		return new ErrorResult<>(error);		
+		return new ErrorResult<>(error);
 	}
+
+	static <T> Result<T> error(int status) {
+		return error(
+				ErrorResult.getErrorCodeFrom(status)
+		);
+	}
+
+	/**
+	 * Convenience method used to return an error
+	 * @return
+	 */
+	static <T> Result<T> error(ErrorCode error, Object errorValue) {
+		return new ErrorResult<>(error, errorValue);
+	}
+
+	/**
+	 * Convenience method used to return an redirect result
+	 * @return
+	 */
+	static <T> Result<T> redirected(Result<T> res) {
+		System.err.println(">>>>>>>>>>>" + res );
+		if( res.isOK() )
+			return error(ErrorCode.REDIRECTED, res.value());
+		else
+			return res;
+	}
+
 }
 
 /*
@@ -102,9 +130,15 @@ class OkResult<T> implements Result<T> {
 class ErrorResult<T> implements Result<T> {
 
 	final ErrorCode error;
-	
+	final Object errorValue;
+
 	ErrorResult(ErrorCode error) {
+		this(error, null);
+	}
+
+	ErrorResult(ErrorCode error, Object errorValue) {
 		this.error = error;
+		this.errorValue = errorValue;
 	}
 	
 	@Override
@@ -113,16 +147,36 @@ class ErrorResult<T> implements Result<T> {
 	}
 
 	@Override
-	public T value() {
-		throw new RuntimeException("Attempting to extract the value of an Error: " + error());
-	}
-
-	@Override
 	public ErrorCode error() {
 		return error;
 	}
-	
+
+	@Override
+	public T value() {
+		if( error == ErrorCode.REDIRECTED)
+			return errorValue();
+		throw new RuntimeException("Attempting to extract the value of an Error: " + error());
+	}
+
+	@SuppressWarnings("unchecked")
+	public <Q> Q errorValue() {
+		return (Q)errorValue;
+	}
+
 	public String toString() {
 		return "(" + error() + ")";		
+	}
+
+	public static ErrorCode getErrorCodeFrom(int status) {
+		return switch (status) {
+			// todo: add timeout :)
+			case 200, 209 -> ErrorCode.OK;
+			case 409 -> ErrorCode.CONFLICT;
+			case 403 -> ErrorCode.FORBIDDEN;
+			case 404 -> ErrorCode.NOT_FOUND;
+			case 400 -> ErrorCode.BAD_REQUEST;
+			case 501 -> ErrorCode.NOT_IMPLEMENTED;
+			default -> ErrorCode.INTERNAL_ERROR;
+		};
 	}
 }

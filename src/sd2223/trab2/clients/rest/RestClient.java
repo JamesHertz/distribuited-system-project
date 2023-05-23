@@ -77,24 +77,10 @@ public class RestClient {
                 return ok(reader.get());
             else if (status == Status.NO_CONTENT) return ok();
 
-            return error(getErrorCodeFrom(status.getStatusCode()));
+            return error(status.getStatusCode());
         } finally {
             r.close();
         }
-    }
-
-
-    public static ErrorCode getErrorCodeFrom(int status) {
-        return switch (status) {
-            // todo: add timeout :)
-            case 200, 209 -> ErrorCode.OK;
-            case 409 -> ErrorCode.CONFLICT;
-            case 403 -> ErrorCode.FORBIDDEN;
-            case 404 -> ErrorCode.NOT_FOUND;
-            case 400 -> ErrorCode.BAD_REQUEST;
-            case 501 -> ErrorCode.NOT_IMPLEMENTED;
-            default -> ErrorCode.INTERNAL_ERROR;
-        };
     }
 
     @Override
