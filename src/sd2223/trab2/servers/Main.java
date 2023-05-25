@@ -6,6 +6,7 @@ import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.servers.java.JavaFeeds;
 import sd2223.trab2.servers.java.JavaService;
 import sd2223.trab2.servers.java.JavaUsers;
+import sd2223.trab2.servers.proxy.MockingFeedsServer;
 import sd2223.trab2.servers.rest.RestServer;
 import sd2223.trab2.servers.soap.SoapServer;
 import sd2223.trab2.utils.Secret;
@@ -59,9 +60,10 @@ public class Main {
 
         var domain = ns.getString("domain");
         var service = ns.getString("service");
+        var protocol = ns.getString("protocol");
         Secret.setSecret( ns.getString("secret") );
 
-        JavaService javaService= switch (ns.getString("service")){
+        JavaService javaService= switch (service){
             case USERS_SERVICE -> new JavaUsers(domain);
             case FEEDS_SERVICE -> {
                 var baseNumber = ns.getLong("base_number");
@@ -72,6 +74,11 @@ public class Main {
                 }
                 yield new JavaFeeds(domain, baseNumber);
             }
+            case "proxy" -> {
+               service = FEEDS_SERVICE;
+               protocol = "rest";
+               yield new MockingFeedsServer();
+            }
             default ->  null;
         };
 
@@ -79,7 +86,7 @@ public class Main {
         String serverName = InetAddress.getLocalHost().getHostName();
 
         URI serverURI;
-        if(ns.getString("protocol").equals("rest")){
+        if("rest".equals(protocol)){
             serverURI = getRestURI(serverName, REST_PORT);
             RestServer.runServer(serverURI, service, javaService);
         } else {

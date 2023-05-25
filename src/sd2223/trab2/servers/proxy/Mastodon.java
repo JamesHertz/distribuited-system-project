@@ -1,34 +1,38 @@
 package sd2223.trab2.servers.proxy;
 
+import java.time.ZonedDateTime;
+import java.util.List;
+
+import com.google.gson.reflect.TypeToken;
+
 import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.model.OAuth2AccessToken;
 import com.github.scribejava.core.model.OAuthRequest;
 import com.github.scribejava.core.model.Response;
 import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
-import com.google.gson.reflect.TypeToken;
+
 import sd2223.trab2.api.Message;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
 import sd2223.trab2.utils.JSON;
 
-import java.util.List;
-
-import static sd2223.trab2.api.java.Result.ErrorCode.INTERNAL_ERROR;
-import static sd2223.trab2.api.java.Result.ErrorCode.NOT_IMPLEMENTED;
-import static sd2223.trab2.api.java.Result.error;
-import static sd2223.trab2.api.java.Result.ok;
+import static sd2223.trab2.api.java.Result.ErrorCode;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Mastodon implements Feeds {
-	
+
+	// urls :)
 	static String MASTODON_NOVA_SERVER_URI = "http://10.170.138.52:3000";
+	static String MASTODON_SOCIAL_SERVER_URI = "https://mastodon.social/";
+	static String MASTODON_SERVER_URI = MASTODON_SOCIAL_SERVER_URI; //MASTODON_NOVA_SERVER_URI;
 
-	static String MASTODON_SERVER_URI = MASTODON_NOVA_SERVER_URI;
-	
-	private static final String clientKey = "wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
-	private static final String clientSecret = "sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
-	private static final String accessTokenStr = "IGfNFsn2KhsJE2iUbFLPzNU8CHuQ7_3FJxecydOyAn0";
+	// APIs keys
+	private static final String clientKey = "Ptf9io1AU8nBV1rJyO3dzNqAuDDrRNDwpQ3o9VS1Kl8"; //"wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
+	private static final String clientSecret = "XGB_flbn_AAHNcFEx9nc_vMofcHWk-pVdiw5nJe7rHg"; //"sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
+	private static final String accessTokenStr = "BfHJk3Jyzm6NrYuTFapd3U1BpULHHcYh759wQ3u8dmA"; //"IGfNFsn2KhsJE2iUbFLPzNU8CHuQ7_3FJxecydOyAn0";
 
+	// APIs paths
 	static final String STATUSES_PATH= "/api/v1/statuses";
 	static final String STATUSES_ID_PATH = STATUSES_PATH +"/%d";
 	static final String TIMELINES_PATH = "/api/v1/timelines/home";
@@ -39,33 +43,20 @@ public class Mastodon implements Feeds {
 	static final String ACCOUNT_UNFOLLOW_PATH = "/api/v1/accounts/%s/unfollow";
 	
 	private static final int HTTP_OK = 200;
+	private static final String USER_NAME = "61177";
 
-	protected OAuth20Service service;
-	protected OAuth2AccessToken accessToken;
+	private final OAuth20Service service;
+	private final OAuth2AccessToken accessToken;
+	private final String domain;
+	private AtomicBoolean userExists;
 
-	private static Mastodon impl;
-	
-	protected Mastodon() {
-		try {
-			service = new ServiceBuilder(clientKey).apiSecret(clientSecret).build(MastodonApi.instance());
-			accessToken = new OAuth2AccessToken(accessTokenStr);
-		} catch (Exception x) {
-			x.printStackTrace();
-			System.exit(0);
-		}
+	protected Mastodon(String domain) {
+		this.service = new ServiceBuilder(clientKey).apiSecret(clientSecret).build(MastodonApi.instance());
+		this.accessToken = new OAuth2AccessToken(accessTokenStr);
+		this.domain = domain;
+		this.userExists = new AtomicBoolean(false);
 	}
 
-	synchronized public static Mastodon getInstance() {
-		if (impl == null)
-			impl = new Mastodon();
-		return impl;
-	}
-
-	private String getEndpoint(String path, Object ... args ) {
-		var fmt = MASTODON_SERVER_URI + path;
-		return String.format(fmt, args);
-	}
-	
 	@Override
 	public Result<Long> postMessage(String user, String pwd, Message msg) {
 		try {
@@ -74,39 +65,49 @@ public class Mastodon implements Feeds {
 			JSON.toMap( new PostStatusArgs(msg.getText())).forEach( (k, v) -> {
 				request.addBodyParameter(k, v.toString());
 			});
-			
-			service.signRequest(accessToken, request);
+
+			synchronized (service){
+				service.signRequest(accessToken, request);
+			}
 
 			Response response = service.execute(request);
 			if (response.getCode() == HTTP_OK) {
+				System.out.println("postMessage: " + response.getBody());
 				var res = JSON.decode(response.getBody(), PostStatusResult.class);
-				return ok(res.getId());
+				System.out.println(res);
+				return Result.ok(res.getId());
 			}
+			return Result.error(response.getCode());
 		} catch (Exception x) {
 			x.printStackTrace();
+			return Result.error(ErrorCode.INTERNAL_ERROR);
 		}
-		return error(INTERNAL_ERROR);
 	}
 
 	@Override
 	public Result<List<Message>> getMessages(String user, long time) {
 		try {
 			final OAuthRequest request = new OAuthRequest(Verb.GET, getEndpoint(TIMELINES_PATH));
-
 			service.signRequest(accessToken, request);
-
 			Response response = service.execute(request);
-
 			if (response.getCode() == HTTP_OK) {
+				System.out.println("getMessage: " + response.getBody());
 				List<PostStatusResult> res = JSON.decode(response.getBody(), new TypeToken<List<PostStatusResult>>() { });
-				return ok(res.stream().map(PostStatusResult::toMessage).toList());
+				return Result.ok(
+						res.stream()
+						   .map(this::toMessage)
+						   .filter( m -> m.getCreationTime() > time)
+						   .toList()
+				);
 			}
+			return Result.error(response.getCode());
 		} catch (Exception x) {
 			x.printStackTrace();
+			return Result.error(Result.ErrorCode.INTERNAL_ERROR);
 		}
-		return error(INTERNAL_ERROR);
 	}
 
+	
 	@Override
 	public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
 		try{
@@ -114,13 +115,14 @@ public class Mastodon implements Feeds {
 			service.signRequest(accessToken, request);
 			var res = service.execute(request);
 			if( res.getCode() == HTTP_OK ){
-				System.out.println(res.getBody());
-				return ok();
+				return Result.ok();
 			}
+			return Result.error( res.getCode() );
 		}catch (Exception x){
 			x.printStackTrace();
+			return Result.error(ErrorCode.INTERNAL_ERROR);
 		}
-		return error(INTERNAL_ERROR);
+
 	}
 
 	@Override
@@ -131,93 +133,97 @@ public class Mastodon implements Feeds {
 			var res = service.execute(request);
 			if( res.getCode() == HTTP_OK ){
 				var aux = JSON.decode(res.getBody(), PostStatusResult.class);
-				return ok(aux.toMessage());
+				return Result.ok(this.toMessage( aux ));
 			}
+			return Result.error(res.getCode());
 		}catch (Exception x){
 			x.printStackTrace();
+			return Result.error(ErrorCode.INTERNAL_ERROR);
 		}
-		return error(INTERNAL_ERROR);
 	}
 
-	// need to do thins here :)
-
-	@Override
-	public Result<Void> unSubscribeUser(String user, String userSub, String pwd) {
-		return null;
+	private Message toMessage(PostStatusResult res){
+		var m = new Message( res.getId(), USER_NAME, this.domain, res.getText());
+		m.setCreationTime( res.getCreationTime() );
+		return m;
 	}
 
 	@Override
 	public Result<Void> subscribeUser(String user, String userSub, String pwd) {
-		return error(NOT_IMPLEMENTED);
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
+	}
+
+	@Override
+	public Result<Void> unSubscribeUser(String user, String userSub, String pwd) {
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<List<String>> listSubs(String user) {
-		return error(NOT_IMPLEMENTED);
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
+
+
+	private String getEndpoint(String path, Object ... args ) {
+		var fmt = MASTODON_SERVER_URI + path;
+		return String.format(fmt, args);
+	}
+
+	// others methods :)
 	@Override
 	public Result<List<Message>> subscribeServer(String domain, String user, String secret) {
-		return null;
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<Void> createFeed(String user, String secret) {
-		return null;
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<Void> createExtFeedMessage(String user, String secret, Message msg) {
-		return null;
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<Void> removeExtFeedMessage(String user, long mid, String secret) {
-		return null;
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<Void> removeFeed(String user, String secret) {
-		return null;
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<Void> removeExtFeed(String user, String secret) {
-		return null;
+		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<Void> unsubscribeServer(String domain, String user, String secret) {
-		return null;
+		return Result.error( ErrorCode.NOT_IMPLEMENTED );
 	}
 
-
-	// other things :)
-	private record MastodonAccount(String id, String username) { };
+	private record MastodonAccount(String id, String username) { }
 	private record PostStatusArgs(String status, String visibility) {
-
 		public PostStatusArgs(String msg) {
 			this(msg, "private");
 		}
 	}
+
 	private record PostStatusResult(String id, String content, String created_at, MastodonAccount account) {
-
 		public long getId() {
-			return Long.valueOf(id);
+			return Long.parseLong(id);
 		}
-
 		long getCreationTime() {
-			return 0;
+			return ZonedDateTime.parse(created_at)
+					.toInstant().toEpochMilli();
 		}
-
 		public String getText() {
 			return content;
 		}
-
-		public Message toMessage() {
-			var m = new Message( getId(), "61177", "fct.unl.pt", getText());
-			m.setCreationTime( getCreationTime() );
-			return m;
-		}
 	}
+
 }

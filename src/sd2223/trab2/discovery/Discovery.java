@@ -1,10 +1,7 @@
 package sd2223.trab2.discovery;
 
 import java.net.*;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -53,6 +50,7 @@ class DiscoveryImpl implements Discovery {
 	// The pre-aggreed multicast endpoint assigned to perform discovery.
 	static final int DISCOVERY_RETRY_TIMEOUT = 5000;
 	static final int DISCOVERY_ANNOUNCE_PERIOD = 1000;
+	static final int RECORD_TTL = 2 * DISCOVERY_ANNOUNCE_PERIOD;
 	static final int DISCOVERY_PORT = 2266;
 
 	// Replace with appropriate values...
@@ -63,9 +61,10 @@ class DiscoveryImpl implements Discovery {
 	private static final String DELIMITER = "\t";
 
 	private static final int MAX_DATAGRAM_SIZE = 65536;
+	private static final URI[] NO_URIS = new URI[0];
 
 	private static Discovery singleton;
-	private final Map<String, Set<URI>> records;
+	private final Map<String, Map<URI, Long>> records;
 
 	synchronized static Discovery getInstance() {
 		if (singleton == null) {
@@ -107,25 +106,32 @@ class DiscoveryImpl implements Discovery {
 
 	@Override
 	public URI[] knownUrisOf(String serviceName, int minEntries) {
-		var values = this.getRecords(serviceName);
+		var res = this.getRecords(serviceName);
 		Log.info("Getting URI of: " + serviceName);
-		if(values.length < minEntries){
-			Log.info(String.format("Ops just found %d records. I will wait a bit", values.length));
+		var foundCount= res.isEmpty() ? 0 : res.get().length;
+		if(foundCount < minEntries){
+			Log.info(String.format("Ops just found %d records. I will wait a bit", foundCount));
 			try{
 				Thread.sleep(DISCOVERY_RETRY_TIMEOUT);
 			} catch (InterruptedException e) {
-				e.printStackTrace();
 				Log.info("Thread woke-up do what :)");
+				e.printStackTrace();
 			}
-			values = this.getRecords(serviceName);
+			res = this.getRecords(serviceName);
 		}
-		return values;
+		return res.orElse(NO_URIS);
 	}
 
-	private synchronized URI[] getRecords(String serviceName){
+	private synchronized Optional<URI[]> getRecords(String serviceName){
 		var values = this.records.get(serviceName);
-		if(values == null) return new URI[0];
-		else return values.toArray(new URI[0]);
+		URI[] records;
+		return values == null || (records = makeRecords(values)).length == 0
+				? Optional.empty() : Optional.of(records);
+	}
+
+	private URI[] makeRecords(Map<URI, Long> recs){
+		recs.values().removeIf(ctime -> System.currentTimeMillis() - ctime > RECORD_TTL);
+		return recs.keySet().toArray(URI[]::new);
 	}
 
 	private void startListener() {
@@ -148,8 +154,11 @@ class DiscoveryImpl implements Discovery {
 							var serviceName = parts[0];
 							var uri = URI.create(parts[1]);
 							synchronized (this){
-								Set<URI> record_values = records.computeIfAbsent(serviceName, k -> new HashSet<>());
-								record_values.add(uri);
+								var record_values = records.computeIfAbsent(serviceName, k -> new HashMap<>());
+								record_values.put(uri, System.currentTimeMillis());
+								// record_values.add(new Record( // TODO: think about this later :)
+								// 		System.currentTimeMillis(), uri
+								// ));
 							}
 						}
 
@@ -162,4 +171,23 @@ class DiscoveryImpl implements Discovery {
 			}
 		}).start();
 	}
+
+	private record Record(long creationTime, URI value)implements Comparable<Record>{
+		@Override
+		public int compareTo(Record o) {
+			return this.value.compareTo(o.value());
+		}
+
+		@Override
+		public boolean equals(Object other){
+			return other instanceof Record
+					&& this.value.equals(((Record) other).value);
+		}
+
+		@Override
+		public int hashCode() {
+			return this.value.hashCode();
+		}
+	}
+
 }
