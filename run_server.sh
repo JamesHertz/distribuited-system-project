@@ -4,6 +4,8 @@ set -e
 IMAGE=sd2223-trab2-60198-61177
 NETWORK=sd-proj1
 PORT=8080
+HOST=
+PASSWORD=
 
 while true
 do
@@ -22,18 +24,35 @@ do
         EXPOSED="--expose $PORT -P"
       fi
      ;;
+   -h|--host)
+      HOST="$2"
+      shift
+      ;;
+    --pass)
+      PASSWORD=$2
+      shift
+      ;;
     *)
       break ;;
   esac
     shift
 done
 
-if [ $# -lt 2 ] ; then
-    echo "usage: $0 <domain> [ users | feeds ]"
-    echo "ERROR: wrong number of arguments"
-    exit 1
+if [ -z "$HOST" ] || [ -z "$PASSWORD" ] ; then
+  echo "Password of hostname not set."
+  exit 1
+fi
+
+if  ! [ -f "tls/keystore/$HOST.jks" ] ; then
+  echo -n "Invalid hostname: $HOST"
+  exit 1
 fi
 
 echo "running: "
-docker run --rm -it --network "$NETWORK" $EXPOSED  "$IMAGE"
-
+docker run --rm -it --network "$NETWORK" $EXPOSED  -h "$HOST" "$IMAGE" \
+  java -Djavax.net.ssl.keyStore="keystore/$HOST.jks" \
+      -Djavax.net.ssl.keyStorePassword=$PASSWORD     \
+      -Djavax.net.ssl.trustStore=keystore/users-keystore.jks \
+      -Djavax.net.ssl.trustStorePassword=changeit  \
+      -cp sd2223.jar sd2223.trab2.servers.Main \
+      $*

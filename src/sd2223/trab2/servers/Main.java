@@ -3,10 +3,8 @@ import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import sd2223.trab2.api.java.Service;
-import sd2223.trab2.api.java.ServiceType;
 import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.servers.java.JavaFeeds;
-import sd2223.trab2.servers.java.JavaService;
 import sd2223.trab2.servers.java.JavaUsers;
 import sd2223.trab2.servers.proxy.Mastodon;
 import sd2223.trab2.servers.rest.RestServer;
@@ -64,7 +62,7 @@ public class Main {
         var protocol = ns.getString("protocol");
         Secret.setSecret( ns.getString("secret") );
 
-        var stype = ServiceType.USERS;
+        var stype = Service.ServiceType.USERS;
         Service service = switch (ns.getString("service")){
             case USERS_SERVICE -> new JavaUsers(domain);
             case FEEDS_SERVICE -> {
@@ -74,12 +72,12 @@ public class Main {
                     parser.printUsage();
                     System.exit(1);
                 }
-                stype = ServiceType.FEEDS;
+                stype = Service.ServiceType.FEEDS;
                 yield new JavaFeeds(domain, baseNumber);
             }
             case "proxy" -> {
                protocol = "rest";
-               stype = ServiceType.FEEDS;
+               stype = Service.ServiceType.FEEDS;
                yield new Mastodon(domain);
             }
             default ->  null;

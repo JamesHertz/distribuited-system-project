@@ -12,9 +12,12 @@ import com.github.scribejava.core.model.Response;
 import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 
+import jakarta.ws.rs.client.ClientBuilder;
 import sd2223.trab2.api.Message;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
+import sd2223.trab2.clients.ClientFactory;
+import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.utils.Formatter;
 import static sd2223.trab2.utils.Formatter.UserAddress;
 import sd2223.trab2.utils.JSON;
@@ -96,8 +99,11 @@ public class Mastodon implements Feeds {
 	@Override
 	public Result<List<Message>> getMessages(String user, long time) {
 		Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
-		var err = checkParameters(user);
-		if(!err.isOK()) return Result.error( err.error() );
+		var addr = Formatter.getUserAddress( user );
+		if( this.badAddress(addr) ) {
+			Log.info("Bad address.");
+			return Result.error( ErrorCode.BAD_REQUEST );
+		}
 
 		try {
 			final OAuthRequest request = new OAuthRequest(Verb.GET, getEndpoint(TIMELINES_PATH));
@@ -145,8 +151,11 @@ public class Mastodon implements Feeds {
 	@Override
 	public Result<Message> getMessage(String user, long mid) {
 		Log.info(String.format("getMessages: user=%s ; mid=%d", user, mid));
-		var err = checkParameters(user);
-		if(!err.isOK()) return Result.error( err.error() );
+		var addr = Formatter.getUserAddress( user );
+		if( this.badAddress(addr) ) {
+			Log.info("Bad address.");
+			return Result.error( ErrorCode.BAD_REQUEST );
+		}
 
 		try{
 			final var request = new OAuthRequest(Verb.GET, getEndpoint(STATUSES_ID_PATH, mid));
@@ -231,28 +240,26 @@ public class Mastodon implements Feeds {
 		return Result.ok();
 	}
 
-	private Result<Void> checkParameters(String user){
-		return checkParameters(user, null);
-	}
-
 	private Result<Void> checkParameters(String user, String pwd){
 		var addr = Formatter.getUserAddress(user);
-		if( this.badAddress(addr) ) {
+		if( pwd == null || this.badAddress( addr ) ){
 			Log.info("Bad address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
+
 		if( !( this.userExists.get() && USER_NAME.equals( addr.username() ) ) ){
 			Log.info("User not found.");
 			return Result.error( ErrorCode.NOT_FOUND );
 		}
 
-		if(pwd != null){
-			// check pwd :)
-		}
-
-		return Result.ok();
+		// look at this later :)
+		var uris = Discovery.getInstance().knownUrisOf(
+				Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE),
+				1
+		);
+		var server = ClientFactory.getUsersClient( uris[0] );
+		return server.verifyPassword(addr.username(), pwd);
 	}
-
 
 	// others methods :)
 	@Override
