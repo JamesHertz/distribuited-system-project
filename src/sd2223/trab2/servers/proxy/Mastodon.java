@@ -15,10 +15,14 @@ import com.github.scribejava.core.oauth.OAuth20Service;
 import sd2223.trab2.api.Message;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
+import sd2223.trab2.utils.Formatter;
+import static sd2223.trab2.utils.Formatter.UserAddress;
 import sd2223.trab2.utils.JSON;
+import sd2223.trab2.utils.Secret;
 
 import static sd2223.trab2.api.java.Result.ErrorCode;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
 
 public class Mastodon implements Feeds {
 
@@ -44,6 +48,7 @@ public class Mastodon implements Feeds {
 	
 	private static final int HTTP_OK = 200;
 	private static final String USER_NAME = "61177";
+	private static final Logger Log = Logger.getLogger(Mastodon.class.getName());
 
 	private final OAuth20Service service;
 	private final OAuth2AccessToken accessToken;
@@ -59,6 +64,10 @@ public class Mastodon implements Feeds {
 
 	@Override
 	public Result<Long> postMessage(String user, String pwd, Message msg) {
+		Log.info(String.format("postMessage: user=%s ; pwd=%s; msg=%s", user, pwd, msg));
+		var err = checkParameters(user, pwd);
+		if(!err.isOK()) return Result.error( err.error() );
+
 		try {
 			final OAuthRequest request = new OAuthRequest(Verb.POST, getEndpoint(STATUSES_PATH));
 
@@ -86,6 +95,10 @@ public class Mastodon implements Feeds {
 
 	@Override
 	public Result<List<Message>> getMessages(String user, long time) {
+		Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
+		var err = checkParameters(user);
+		if(!err.isOK()) return Result.error( err.error() );
+
 		try {
 			final OAuthRequest request = new OAuthRequest(Verb.GET, getEndpoint(TIMELINES_PATH));
 			service.signRequest(accessToken, request);
@@ -110,6 +123,10 @@ public class Mastodon implements Feeds {
 	
 	@Override
 	public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
+		Log.info(String.format("getMessages: user=%s ; mid=%d; pwd=%s", user, mid, pwd));
+		var aux = checkParameters(user, pwd);
+		if(!aux.isOK()) return Result.error( aux.error() );
+
 		try{
 			final var request = new OAuthRequest(Verb.DELETE, getEndpoint(STATUSES_ID_PATH, mid));
 			service.signRequest(accessToken, request);
@@ -127,6 +144,10 @@ public class Mastodon implements Feeds {
 
 	@Override
 	public Result<Message> getMessage(String user, long mid) {
+		Log.info(String.format("getMessages: user=%s ; mid=%d", user, mid));
+		var err = checkParameters(user);
+		if(!err.isOK()) return Result.error( err.error() );
+
 		try{
 			final var request = new OAuthRequest(Verb.GET, getEndpoint(STATUSES_ID_PATH, mid));
 			service.signRequest(accessToken, request);
@@ -163,21 +184,76 @@ public class Mastodon implements Feeds {
 		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
+	@Override
+	public Result<Void> createFeed(String user, String secret) {
+		Log.info(String.format("createFeed: user=%s ; secret=%s", user, secret));
+		var err = this.checkUsersServerRequest(user, secret);
+		if( !err.isOK() ) return Result.error( err.error() );
 
+		userExists.set(true);
+		return Result.ok();
+	}
+
+	@Override
+	public Result<Void> removeFeed(String user, String secret) {
+		Log.info(String.format("createFeed: user=%s ; secret=%s", user, secret));
+		var err = this.checkUsersServerRequest(user, secret);
+		if( !err.isOK() ) return Result.error( err.error() );
+
+		userExists.set(false);
+		return Result.ok();
+	}
 
 	private String getEndpoint(String path, Object ... args ) {
 		var fmt = MASTODON_SERVER_URI + path;
 		return String.format(fmt, args);
 	}
 
+	private boolean badAddress(UserAddress addr){
+		return addr == null || !this.domain.equals(addr.domain());
+	}
+
+	private Result<Void> checkUsersServerRequest(String user, String secret){
+		var address = Formatter.getUserAddress(user);
+		if( badAddress(address) || !address.domain().equals(user) ){
+			Log.info("Bad request.");
+			return Result.error(ErrorCode.BAD_REQUEST);
+		}
+
+		var realSecret = Secret.getSecret();
+		if(!realSecret.equals(secret)) {
+			Log.info("Wrong secret.");
+			return Result.error( ErrorCode.FORBIDDEN );
+		}
+		return Result.ok();
+	}
+
+	private Result<Void> checkParameters(String user){
+		return checkParameters(user, null);
+	}
+
+	private Result<Void> checkParameters(String user, String pwd){
+		var addr = Formatter.getUserAddress(user);
+		if( this.badAddress(addr) ) {
+			Log.info("Bad address.");
+			return Result.error( ErrorCode.BAD_REQUEST );
+		}
+		if( !( this.userExists.get() && USER_NAME.equals( addr.username() ) ) ){
+			Log.info("User not found.");
+			return Result.error( ErrorCode.NOT_FOUND );
+		}
+
+		if(pwd != null){
+			// check pwd :)
+		}
+
+		return Result.ok();
+	}
+
+
 	// others methods :)
 	@Override
 	public Result<List<Message>> subscribeServer(String domain, String user, String secret) {
-		return Result.error(ErrorCode.NOT_IMPLEMENTED);
-	}
-
-	@Override
-	public Result<Void> createFeed(String user, String secret) {
 		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
@@ -188,11 +264,6 @@ public class Mastodon implements Feeds {
 
 	@Override
 	public Result<Void> removeExtFeedMessage(String user, long mid, String secret) {
-		return Result.error(ErrorCode.NOT_IMPLEMENTED);
-	}
-
-	@Override
-	public Result<Void> removeFeed(String user, String secret) {
 		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
