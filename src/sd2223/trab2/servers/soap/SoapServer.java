@@ -10,6 +10,8 @@ import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 import jakarta.xml.ws.Endpoint;
 import sd2223.trab2.api.java.Feeds;
+import sd2223.trab2.api.java.Service;
+import sd2223.trab2.api.java.ServiceType;
 import sd2223.trab2.api.java.Users;
 import sd2223.trab2.servers.java.JavaService;
 import sd2223.trab2.servers.soap.services.SoapFeedsWebService;
@@ -31,17 +33,13 @@ public class SoapServer {
 
 	}
 
-	public static void runServer(URI serverURI, String service, JavaService jService){
+	public static void runServer(URI serverURI, ServiceType stype, Service service){
 		try {
 
 			Object implementor = null;
-			switch (service) {
-				case USERS_SERVICE -> implementor = new SoapUsersWebService((Users) jService);
-				case FEEDS_SERVICE -> implementor = new SoapFeedsWebService((Feeds) jService);
-				default -> {
-					System.out.println("ERROR: invalid service: " + service);
-					System.exit(1);
-				}
+			switch (stype) {
+				case USERS -> implementor = new SoapUsersWebService((Users) service);
+				case FEEDS -> implementor = new SoapFeedsWebService((Feeds) service);
 			}
 			var server = HttpsServer.create(new InetSocketAddress(serverURI.getHost(), serverURI.getPort()), 0);
 			server.setExecutor(Executors.newCachedThreadPool());

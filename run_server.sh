@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-JAR_FILE=sd2223.jar
-IMAGE=sd2223-trab1-60198-61177
+IMAGE=sd2223-trab2-60198-61177
 NETWORK=sd-proj1
 PORT=8080
-REST_SERVER="sd2223.trab2.servers.rest.RestServer"
-SOAP_SERVER="sd2223.trab2.servers.soap.SoapServer"
-SERVER=
 
 while true
 do
@@ -26,11 +22,6 @@ do
         EXPOSED="--expose $PORT -P"
       fi
      ;;
-    --soap)
-      echo "server: SOAP"
-      SERVER=$SOAP_SERVER
-      ;;
-    --rest) ;;
     *)
       break ;;
   esac
@@ -43,12 +34,6 @@ if [ $# -lt 2 ] ; then
     exit 1
 fi
 
-if [ -z "$SERVER" ] ; then
-  echo "server: REST"
-  SERVER=$REST_SERVER
-fi
-
-CMD="java -cp "$JAR_FILE" $SERVER $*"
-echo "running: $*"
-docker run --rm -it --network "$NETWORK" $EXPOSED  "$IMAGE" $CMD
+echo "running: "
+docker run --rm -it --network "$NETWORK" $EXPOSED  "$IMAGE"
 

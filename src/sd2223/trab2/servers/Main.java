@@ -2,11 +2,13 @@ package sd2223.trab2.servers;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
+import sd2223.trab2.api.java.Service;
+import sd2223.trab2.api.java.ServiceType;
 import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.servers.java.JavaFeeds;
 import sd2223.trab2.servers.java.JavaService;
 import sd2223.trab2.servers.java.JavaUsers;
-import sd2223.trab2.servers.proxy.MockingFeedsServer;
+import sd2223.trab2.servers.proxy.Mastodon;
 import sd2223.trab2.servers.rest.RestServer;
 import sd2223.trab2.servers.soap.SoapServer;
 import sd2223.trab2.utils.Secret;
@@ -59,11 +61,11 @@ public class Main {
         }
 
         var domain = ns.getString("domain");
-        var service = ns.getString("service");
         var protocol = ns.getString("protocol");
         Secret.setSecret( ns.getString("secret") );
 
-        JavaService javaService= switch (service){
+        var stype = ServiceType.USERS;
+        Service service = switch (ns.getString("service")){
             case USERS_SERVICE -> new JavaUsers(domain);
             case FEEDS_SERVICE -> {
                 var baseNumber = ns.getLong("base_number");
@@ -72,26 +74,27 @@ public class Main {
                     parser.printUsage();
                     System.exit(1);
                 }
+                stype = ServiceType.FEEDS;
                 yield new JavaFeeds(domain, baseNumber);
             }
             case "proxy" -> {
-               service = FEEDS_SERVICE;
                protocol = "rest";
-               yield new MockingFeedsServer();
+               stype = ServiceType.FEEDS;
+               yield new Mastodon(domain);
             }
             default ->  null;
         };
 
-        String serverID = getServiceID(domain, service);
+        String serverID = getServiceID(domain, stype.toString().toLowerCase());
         String serverName = InetAddress.getLocalHost().getHostName();
 
         URI serverURI;
         if("rest".equals(protocol)){
             serverURI = getRestURI(serverName, REST_PORT);
-            RestServer.runServer(serverURI, service, javaService);
+            RestServer.runServer(serverURI, stype, service);
         } else {
             serverURI = getSoapURI(serverName, SOAP_PORT);
-            SoapServer.runServer(serverURI, service, javaService);
+            SoapServer.runServer(serverURI, stype, service);
         }
 
         Discovery ds = Discovery.getInstance();

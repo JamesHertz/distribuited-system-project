@@ -4,7 +4,7 @@ import java.util.List;
 
 import sd2223.trab2.api.User;
 
-public interface Users {
+public interface Users extends Service {
 
 	Result<String> createUser(User user);
 	

@@ -3,6 +3,8 @@ package sd2223.trab2.servers.rest;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import sd2223.trab2.api.java.Feeds;
+import sd2223.trab2.api.java.Service;
+import sd2223.trab2.api.java.ServiceType;
 import sd2223.trab2.api.java.Users;
 import sd2223.trab2.servers.java.JavaFeeds;
 import sd2223.trab2.servers.java.JavaService;
@@ -19,16 +21,12 @@ import static sd2223.trab2.utils.Formatter.*;
 
 public class RestServer {
 
-    public static void runServer(URI serverURI, String service, JavaService jService){
+    public static void runServer(URI serverURI, ServiceType stype, Service service){
         try {
             ResourceConfig config = new ResourceConfig();
-            switch (service) {
-                case USERS_SERVICE -> config.register(new RestUsersResource((Users) jService));
-                case FEEDS_SERVICE -> config.register(new RestFeedsResource((Feeds) jService));
-                default -> {
-                    System.out.println("ERROR: invalid service: " + service);
-                    System.exit(1);
-                }
+            switch (stype) {
+                case USERS -> config.register(new RestUsersResource((Users) service));
+                case FEEDS -> config.register(new RestFeedsResource((Feeds) service));
             }
 
             JdkHttpServerFactory.createHttpServer(serverURI, config, SSLContext.getDefault());

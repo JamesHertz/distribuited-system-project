@@ -4,7 +4,7 @@ import sd2223.trab2.api.Message;
 
 import java.util.List;
 
-public interface Feeds {
+public interface Feeds extends Service{
 
     Result<Long> postMessage(String user, String pwd, Message msg);
 

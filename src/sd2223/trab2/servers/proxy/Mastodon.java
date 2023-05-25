@@ -28,13 +28,13 @@ public class Mastodon implements Feeds {
 
 	// urls :)
 	static String MASTODON_NOVA_SERVER_URI = "http://10.170.138.52:3000";
-	static String MASTODON_SOCIAL_SERVER_URI = "https://mastodon.social/";
-	static String MASTODON_SERVER_URI = MASTODON_SOCIAL_SERVER_URI; //MASTODON_NOVA_SERVER_URI;
+	// static String MASTODON_SOCIAL_SERVER_URI = "https://mastodon.social/";
+	static String MASTODON_SERVER_URI = /*MASTODON_SOCIAL_SERVER_URI;*/ MASTODON_NOVA_SERVER_URI;
 
 	// APIs keys
-	private static final String clientKey = "Ptf9io1AU8nBV1rJyO3dzNqAuDDrRNDwpQ3o9VS1Kl8"; //"wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
-	private static final String clientSecret = "XGB_flbn_AAHNcFEx9nc_vMofcHWk-pVdiw5nJe7rHg"; //"sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
-	private static final String accessTokenStr = "BfHJk3Jyzm6NrYuTFapd3U1BpULHHcYh759wQ3u8dmA"; //"IGfNFsn2KhsJE2iUbFLPzNU8CHuQ7_3FJxecydOyAn0";
+	private static final String clientKey = /*"Ptf9io1AU8nBV1rJyO3dzNqAuDDrRNDwpQ3o9VS1Kl8";*/ "wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
+	private static final String clientSecret = /*"XGB_flbn_AAHNcFEx9nc_vMofcHWk-pVdiw5nJe7rHg";*/ "sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
+	private static final String accessTokenStr = /*"BfHJk3Jyzm6NrYuTFapd3U1BpULHHcYh759wQ3u8dmA";*/ "IGfNFsn2KhsJE2iUbFLPzNU8CHuQ7_3FJxecydOyAn0";
 
 	// APIs paths
 	static final String STATUSES_PATH= "/api/v1/statuses";
@@ -53,9 +53,9 @@ public class Mastodon implements Feeds {
 	private final OAuth20Service service;
 	private final OAuth2AccessToken accessToken;
 	private final String domain;
-	private AtomicBoolean userExists;
+	private final AtomicBoolean userExists;
 
-	protected Mastodon(String domain) {
+	public Mastodon(String domain) {
 		this.service = new ServiceBuilder(clientKey).apiSecret(clientSecret).build(MastodonApi.instance());
 		this.accessToken = new OAuth2AccessToken(accessTokenStr);
 		this.domain = domain;
@@ -171,16 +171,19 @@ public class Mastodon implements Feeds {
 
 	@Override
 	public Result<Void> subscribeUser(String user, String userSub, String pwd) {
+		Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
 		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<Void> unSubscribeUser(String user, String userSub, String pwd) {
+		Log.info(String.format("unSubscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
 		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
 	@Override
 	public Result<List<String>> listSubs(String user) {
+		Log.info(String.format("listSubs: user=%s ", user));
 		return Result.error(ErrorCode.NOT_IMPLEMENTED);
 	}
 
@@ -215,7 +218,7 @@ public class Mastodon implements Feeds {
 
 	private Result<Void> checkUsersServerRequest(String user, String secret){
 		var address = Formatter.getUserAddress(user);
-		if( badAddress(address) || !address.domain().equals(user) ){
+		if( badAddress(address) || !address.domain().equals(this.domain) ){
 			Log.info("Bad request.");
 			return Result.error(ErrorCode.BAD_REQUEST);
 		}
