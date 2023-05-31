@@ -29,13 +29,12 @@ import java.util.logging.Logger;
 
 public class Mastodon implements Feeds {
 
-	// urls :)
-	static String MASTODON_NOVA_SERVER_URI = "http://10.170.138.52:3000";
+	// Mastodon URL
+	static String MASTODON_NOVA_SERVER_URI   = "http://10.170.138.52:3000";
 	static String MASTODON_SOCIAL_SERVER_URI = "https://mastodon.social/";
-	static String MASTODON_SERVER_URI =  MASTODON_NOVA_SERVER_URI;
+	static String MASTODON_SERVER_URI        =  MASTODON_NOVA_SERVER_URI;
 
 	// APIs keys
-
 	/*
 	// social mastodon keys
 	private static final String clientKey = "Ptf9io1AU8nBV1rJyO3dzNqAuDDrRNDwpQ3o9VS1Kl8";
@@ -45,30 +44,33 @@ public class Mastodon implements Feeds {
 
 
 	// profs mastodon keys
-	private static final String clientKey = "wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
-	private static final String clientSecret = "sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
+	private static final String clientKey      = "wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
+	private static final String clientSecret   = "sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
 	private static final String accessTokenStr = "Tl5gfuLz_B-TO0V_sA4c-i4VYcI1aIg9i6zvLgjIErM";
 
 	// APIs paths
-	static final String STATUSES_PATH= "/api/v1/statuses";
-	static final String STATUSES_ID_PATH = STATUSES_PATH +"/%d";
-	static final String TIMELINES_PATH = "/api/v1/timelines/home";
-	static final String ACCOUNT_FOLLOWING_PATH = "/api/v1/accounts/%s/following";
-	static final String VERIFY_CREDENTIALS_PATH = "/api/v1/accounts/verify_credentials";
-	static final String SEARCH_ACCOUNTS_PATH = "/api/v1/accounts/search";
-	static final String ACCOUNT_FOLLOW_PATH = "/api/v1/accounts/%s/follow";
-	static final String ACCOUNT_UNFOLLOW_PATH = "/api/v1/accounts/%s/unfollow";
-	
+	static final String STATUSES_PATH               = "/api/v1/statuses";
+	static final String STATUSES_ID_PATH            = STATUSES_PATH +"/%d";
+	static final String TIMELINES_PATH              = "/api/v1/timelines/home";
+	static final String ACCOUNT_FOLLOWING_PATH      = "/api/v1/accounts/%s/following";
+	static final String VERIFY_CREDENTIALS_PATH     = "/api/v1/accounts/verify_credentials";
+	static final String SEARCH_ACCOUNTS_PATH        = "/api/v1/accounts/search";
+	static final String ACCOUNT_FOLLOW_PATH         = "/api/v1/accounts/%s/follow";
+	static final String ACCOUNT_UNFOLLOW_PATH       = "/api/v1/accounts/%s/unfollow";
+	static final String SEARCH_ACCOUNTS_QUERY_PARAM = "q";
+
+	// useful things :)
+	private static final Logger Log = Logger.getLogger(Mastodon.class.getName());
 	private static final int HTTP_OK = 200;
 	private static final String USER_NAME = "61177";
-	private static final Logger Log = Logger.getLogger(Mastodon.class.getName());
 
+
+	// local variables
 	private final OAuth20Service service;
 	private final OAuth2AccessToken accessToken;
 	private final String domain;
 	private final AtomicBoolean userExists;
-
-	private final long accountID;
+	private final long accountID; // this user id
 
 	public Mastodon(String domain) {
 		this.service = new ServiceBuilder(clientKey).apiSecret(clientSecret).build(MastodonApi.instance());
@@ -86,8 +88,8 @@ public class Mastodon implements Feeds {
 			}
 			var res = service.execute(request);
 			if(res.getCode() == HTTP_OK){
-				var values = JSON.jsonToMap(res.getBody());
-				return Long.parseLong( values.get("id").toString() );
+				var values = JSON.decode(res.getBody(), AccountsResult.class);
+				return values.accID();
 			}
 			Log.severe(res.getBody());
 		}catch (Exception e) {
@@ -99,7 +101,7 @@ public class Mastodon implements Feeds {
 	@Override
 	public Result<Long> postMessage(String user, String pwd, Message msg) {
 		Log.info(String.format("postMessage: user=%s ; pwd=%s; msg=%s", user, pwd, msg));
-		var err = checkParameters(user, pwd);
+		var err = checkUserAndPassword(user, pwd);
 		if(!err.isOK()) return Result.error( err.error() );
 
 		try {
@@ -131,7 +133,7 @@ public class Mastodon implements Feeds {
 	public Result<List<Message>> getMessages(String user, long time) {
 		Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
 		var addr = Formatter.getUserAddress( user );
-		if( this.badAddress(addr) ) {
+		if( this.badLocalUserAddress(addr) ) {
 			Log.severe("Bad address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
@@ -163,7 +165,7 @@ public class Mastodon implements Feeds {
 	@Override
 	public Result<Void> removeFromPersonalFeed(String user, long mid, String pwd) {
 		Log.info(String.format("getMessages: user=%s ; mid=%d; pwd=%s", user, mid, pwd));
-		var aux = checkParameters(user, pwd);
+		var aux = checkUserAndPassword(user, pwd);
 		if(!aux.isOK()) return Result.error( aux.error() );
 
 		try{
@@ -188,7 +190,7 @@ public class Mastodon implements Feeds {
 	public Result<Message> getMessage(String user, long mid) {
 		Log.info(String.format("getMessages: user=%s ; mid=%d", user, mid));
 		var addr = Formatter.getUserAddress( user );
-		if( this.badAddress(addr) ) {
+		if( this.badLocalUserAddress(addr) ) {
 			Log.severe("Bad address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
@@ -215,7 +217,47 @@ public class Mastodon implements Feeds {
 	@Override
 	public Result<Void> subscribeUser(String user, String userSub, String pwd) {
 		Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
-		return Result.error(ErrorCode.NOT_IMPLEMENTED);
+
+		var localAddr = Formatter.getUserAddress(user);
+		var subAddr = Formatter.getUserAddress(user);
+		if( pwd == null || subAddr == null || user.equals(userSub) || badLocalUserAddress(localAddr) ){
+			Log.severe("Bad user address.");
+			return Result.error( ErrorCode.BAD_REQUEST );
+		}
+
+		if( !this.userExists(localAddr.username()) || subAddr.domain().equals(this.domain) ){
+			Log.severe("One of user doesn't exists.");
+			return Result.error( ErrorCode.NOT_FOUND);
+		}
+
+		var aux = this.checkPassword(pwd);
+		if( !aux.isOK() ){
+			Log.severe("Wrong credentials.");
+			return Result.error( aux.error() );
+		}
+
+		var subUserID = this.searchAccountID(userSub);
+		if(!subUserID.isOK()){
+			Log.severe("Error getting subUserID");
+			return Result.error( subUserID.error() );
+		}
+
+		try{
+			var request = new OAuthRequest(Verb.POST, getEndpoint(ACCOUNT_FOLLOW_PATH, subUserID.value()));
+			synchronized (service){
+				service.signRequest(accessToken, request);
+			}
+			var res = service.execute(request);
+			if( res.getCode() == HTTP_OK ){
+				Log.info("Subscription performed.");
+				return Result.ok();
+			}
+			Log.severe(res.getBody());
+			return Result.error( res.getCode() );
+		}catch (Exception e){
+			e.printStackTrace();
+			return Result.error( ErrorCode.INTERNAL_ERROR );
+		}
 	}
 
 	@Override
@@ -229,7 +271,7 @@ public class Mastodon implements Feeds {
 		Log.info(String.format("listSubs: user=%s ", user));
 
 		var addr = Formatter.getUserAddress(user);
-		if( badAddress(addr) ){
+		if( badLocalUserAddress(addr) ){
 			Log.severe("Bad request.");
 			return Result.error(ErrorCode.BAD_REQUEST);
 		}
@@ -246,11 +288,11 @@ public class Mastodon implements Feeds {
 			}
 			var res = service.execute(request);
 			if(res.getCode() == HTTP_OK){
-				List<FollowersResult> values = JSON.decode(res.getBody(), new TypeToken<List<FollowersResult>>() { });
+				List<AccountsResult> values = JSON.decode(res.getBody(), new TypeToken<List<AccountsResult>>() { });
 				return Result.ok(
 						values.stream()
-								.map(FollowersResult::acct) // TODO: if is from our domain add @domain because it won't have it :)
-								.toList()
+							  .map(AccountsResult::acct) // TODO: if is from our domain add @domain because it won't have it :)
+							  .toList()
 				);
 			}
 			Log.severe(res.getBody());
@@ -271,7 +313,7 @@ public class Mastodon implements Feeds {
 		}
 
 		var addr = Formatter.getUserAddress(user);
-		if( badAddress(addr) || !USER_NAME.equals(addr.username()) ){
+		if( badLocalUserAddress(addr) || !USER_NAME.equals(addr.username()) ){
 			Log.severe("Bad user address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
@@ -298,7 +340,7 @@ public class Mastodon implements Feeds {
 	// my private methods
 	private Result<Void> checkUsersServerRequest(String user, String secret){
 		var address = Formatter.getUserAddress(user);
-		if( badAddress(address) ){
+		if( badLocalUserAddress(address) ){
 			Log.severe("Bad request.");
 			return Result.error(ErrorCode.BAD_REQUEST);
 		}
@@ -317,9 +359,9 @@ public class Mastodon implements Feeds {
 		return Result.ok();
 	}
 
-	private Result<Void> checkParameters(String user, String pwd){
+	private Result<Void> checkUserAndPassword(String user, String pwd){
 		var addr = Formatter.getUserAddress(user);
-		if( pwd == null || this.badAddress( addr ) ){
+		if( pwd == null || this.badLocalUserAddress( addr ) ){
 			Log.severe("Bad address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
@@ -329,13 +371,16 @@ public class Mastodon implements Feeds {
 			return Result.error( ErrorCode.NOT_FOUND );
 		}
 
-		// look at this later :)
+		return this.checkPassword( pwd );
+	}
+
+	private Result<Void> checkPassword(String pwd){
 		var uris = Discovery.getInstance().knownUrisOf(
 				Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE),
 				1
 		);
 		var server = ClientFactory.getUsersClient( uris[0] );
-		return server.verifyPassword(addr.username(), pwd);
+		return server.verifyPassword(USER_NAME, pwd);
 	}
 
 	private Message toMessage(PostStatusResult res){
@@ -353,7 +398,7 @@ public class Mastodon implements Feeds {
 		return String.format(fmt, args);
 	}
 
-	private boolean badAddress(UserAddress addr){
+	private boolean badLocalUserAddress(UserAddress addr){
 		return addr == null || !this.domain.equals(addr.domain());
 	}
 
@@ -403,11 +448,36 @@ public class Mastodon implements Feeds {
 		}
 	}
 
-	private record FollowersResult(String acct, String display_name){
-		// public User toUser(){
-		// 	var addr = Formatter.getUserAddress(this.acct);
-		// 	return new User(addr.username(), "", addr.domain(), this.display_name);
-		// }
+	private Result<Long> searchAccountID(String user){
+
+		try{
+			final var request = new OAuthRequest(Verb.GET, getEndpoint(SEARCH_ACCOUNTS_PATH));
+			request.addQuerystringParameter(SEARCH_ACCOUNTS_QUERY_PARAM, user);
+			synchronized (service){
+				service.signRequest(accessToken, request);
+			}
+
+			var res = service.execute(request);
+			if( res.getCode()  == HTTP_OK ){
+				List<AccountsResult> accounts = JSON.decode(res.getBody(), new TypeToken<List<AccountsResult>>() { });
+				Log.info("searchAccountID: acc=" + accounts.toString());
+
+				return accounts.isEmpty() ? Result.error( ErrorCode.NOT_FOUND ) : Result.ok( accounts.get(0).accID() );
+			}
+			Log.info(res.getBody());
+			return Result.error( res.getCode() );
+		}catch (Exception e){
+			e.printStackTrace();
+			return Result.error( ErrorCode.INTERNAL_ERROR );
+		}
+
+	}
+
+
+	private record AccountsResult(String id, String acct, String display_name){
+		public long accID(){
+			return Long.parseLong(this.id);
+		}
 	}
 
 

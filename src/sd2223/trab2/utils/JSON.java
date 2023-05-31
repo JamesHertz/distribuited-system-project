@@ -26,8 +26,10 @@ final public class JSON {
 		return decode(encode(x), Map.class);
 	}
 
+	/*
 	@SuppressWarnings("unchecked")
 	synchronized public static Map<String, Object> jsonToMap(String json){
 		return decode(json, Map.class);
 	}
+	 */
 }
