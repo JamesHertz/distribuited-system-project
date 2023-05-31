@@ -39,14 +39,14 @@ public class Mastodon implements Feeds {
 	// social mastodon keys
 	private static final String clientKey = "Ptf9io1AU8nBV1rJyO3dzNqAuDDrRNDwpQ3o9VS1Kl8";
 	private static final String clientSecret = "XGB_flbn_AAHNcFEx9nc_vMofcHWk-pVdiw5nJe7rHg";
-	private static final String accessTokenStr = "uHYGEW4R2ODaAH8Tly_l_230kxpLcVb5AdMDhuqaaWQ";
+	private static final String accessTokenStr = "NHpqkU29rL--mKcNwh7E6QVxYPwutQuyoK2xoTACrmo";
 	 */
 
 
 	// profs mastodon keys
 	private static final String clientKey      = "wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
 	private static final String clientSecret   = "sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
-	private static final String accessTokenStr = "Tl5gfuLz_B-TO0V_sA4c-i4VYcI1aIg9i6zvLgjIErM";
+	private static final String accessTokenStr = "ItbQPXfq0eDQqNnsNIfsmqXAuAxdd2hFcFEOK9WWCmQ";
 
 	// APIs paths
 	static final String STATUSES_PATH               = "/api/v1/statuses";
@@ -63,6 +63,7 @@ public class Mastodon implements Feeds {
 	private static final Logger Log = Logger.getLogger(Mastodon.class.getName());
 	private static final int HTTP_OK = 200;
 	private static final String USER_NAME = "61177";
+	private static final String DEFAULT_MASTODON_DOMAIN     = "mastodon.social";
 
 
 	// local variables
@@ -88,8 +89,8 @@ public class Mastodon implements Feeds {
 			}
 			var res = service.execute(request);
 			if(res.getCode() == HTTP_OK){
-				var values = JSON.decode(res.getBody(), AccountsResult.class);
-				return values.accID();
+				var values = JSON.decode(res.getBody(), MastodonAccount.class);
+				return values.accountID();
 			}
 			Log.severe(res.getBody());
 		}catch (Exception e) {
@@ -218,25 +219,12 @@ public class Mastodon implements Feeds {
 	public Result<Void> subscribeUser(String user, String userSub, String pwd) {
 		Log.info(String.format("subscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
 
-		var localAddr = Formatter.getUserAddress(user);
-		var subAddr = Formatter.getUserAddress(user);
-		if( pwd == null || subAddr == null || user.equals(userSub) || badLocalUserAddress(localAddr) ){
-			Log.severe("Bad user address.");
-			return Result.error( ErrorCode.BAD_REQUEST );
-		}
+		var subAddr = this.validateSubUnsubParameters(user, userSub, pwd);
+		if(!subAddr.isOK()) return Result.error( subAddr.error() );
 
-		if( !this.userExists(localAddr.username()) || subAddr.domain().equals(this.domain) ){
-			Log.severe("One of user doesn't exists.");
-			return Result.error( ErrorCode.NOT_FOUND);
-		}
+		var addr = subAddr.value();
+		var subUserID = this.searchAccountID(addr.username());
 
-		var aux = this.checkPassword(pwd);
-		if( !aux.isOK() ){
-			Log.severe("Wrong credentials.");
-			return Result.error( aux.error() );
-		}
-
-		var subUserID = this.searchAccountID(userSub);
 		if(!subUserID.isOK()){
 			Log.severe("Error getting subUserID");
 			return Result.error( subUserID.error() );
@@ -263,8 +251,46 @@ public class Mastodon implements Feeds {
 	@Override
 	public Result<Void> unSubscribeUser(String user, String userSub, String pwd) {
 		Log.info(String.format("unSubscribeUser: user=%s ; userSub=%s ; pwd=%s", user, userSub, pwd));
-		return Result.error(ErrorCode.NOT_IMPLEMENTED);
+		var check = this.validateSubUnsubParameters(user, userSub, pwd);
+
+		// verify if parameters are ok
+		if(!check.isOK()) return Result.error( check.error() );
+		var subAddr = check.value();
+
+		// getting subs list
+		var subs = this.getSubList();
+		if(!subs.isOK()) return Result.error( subs.error() );
+
+		var userSubID = subs.value().stream()
+				.filter(acc -> acc.acct.equals(userSub) || acc.acct.equals(subAddr.username()))
+				.map(MastodonAccount::accountID)
+				.findFirst();
+
+		if(userSubID.isEmpty()) {
+			Log.severe("Subscription doesn't exist!");
+			return Result.error( ErrorCode.NOT_FOUND );
+		}
+
+		try{
+			var request = new OAuthRequest(Verb.POST, getEndpoint(ACCOUNT_UNFOLLOW_PATH, userSubID.get()));
+			synchronized (service) {
+				service.signRequest(accessToken, request);
+			}
+			var res = service.execute(request);
+			if(res.getCode() == HTTP_OK){
+				Log.info("Unfollow performed.");
+				return Result.ok();
+			}
+
+			Log.severe( res.getBody() );
+			return Result.error( res.getCode() );
+		}catch (Exception e){
+			e.printStackTrace();
+			return Result.error( ErrorCode.INTERNAL_ERROR );
+		}
+
 	}
+
 
 	@Override
 	public Result<List<String>> listSubs(String user) {
@@ -281,26 +307,10 @@ public class Mastodon implements Feeds {
 			return Result.error(ErrorCode.NOT_FOUND);
 		}
 
-		try{
-			final var request = new OAuthRequest(Verb.GET, getEndpoint(ACCOUNT_FOLLOWING_PATH, accountID));
-			synchronized (service){
-				service.signRequest(accessToken, request);
-			}
-			var res = service.execute(request);
-			if(res.getCode() == HTTP_OK){
-				List<AccountsResult> values = JSON.decode(res.getBody(), new TypeToken<List<AccountsResult>>() { });
-				return Result.ok(
-						values.stream()
-							  .map(AccountsResult::acct) // TODO: if is from our domain add @domain because it won't have it :)
-							  .toList()
-				);
-			}
-			Log.severe(res.getBody());
-			return Result.error( res.getCode() );
-		}catch (Exception e){
-			e.printStackTrace();
-			return Result.error(ErrorCode.INTERNAL_ERROR);
-		}
+		var res = this.getSubList();
+		return res.isOK() ? Result.ok(
+					res.value().stream().map(MastodonAccount::acct).toList()
+		) : Result.error( res.error() );
 	}
 
 	@Override
@@ -336,6 +346,47 @@ public class Mastodon implements Feeds {
 		return Result.ok();
 	}
 
+
+	private Result<List<MastodonAccount>> getSubList(){
+		try{
+			final var request = new OAuthRequest(Verb.GET, getEndpoint(ACCOUNT_FOLLOWING_PATH, accountID));
+			synchronized (service){
+				service.signRequest(accessToken, request);
+			}
+			var res = service.execute(request);
+			if(res.getCode() == HTTP_OK){
+				return Result.ok(
+						JSON.decode( res.getBody(), new TypeToken<List<MastodonAccount>>() { } )
+				);
+			}
+			Log.severe(res.getBody());
+			return Result.error( res.getCode() );
+		}catch (Exception e){
+			e.printStackTrace();
+			return Result.error(ErrorCode.INTERNAL_ERROR);
+		}
+	}
+	private Result<UserAddress> validateSubUnsubParameters(String user, String userSub, String pwd){
+		var localAddr = Formatter.getUserAddress(user);
+		var subAddr = Formatter.getUserAddress(user);
+		if( pwd == null || subAddr == null || user.equals(userSub) || badLocalUserAddress(localAddr) ){
+			Log.severe("Bad user address.");
+			return Result.error( ErrorCode.BAD_REQUEST );
+		}
+
+		if( !this.userExists(localAddr.username()) || subAddr.domain().equals(this.domain) ){
+			Log.severe("One of user doesn't exists.");
+			return Result.error( ErrorCode.NOT_FOUND);
+		}
+
+		var aux = this.checkPassword(pwd);
+		if( !aux.isOK() ){
+			Log.severe("Wrong credentials.");
+			return Result.error( aux.error() );
+		}
+
+		return Result.ok( subAddr );
+	}
 
 	// my private methods
 	private Result<Void> checkUsersServerRequest(String user, String secret){
@@ -375,6 +426,7 @@ public class Mastodon implements Feeds {
 	}
 
 	private Result<Void> checkPassword(String pwd){
+		// TODO: add error here :)
 		var uris = Discovery.getInstance().knownUrisOf(
 				Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE),
 				1
@@ -384,7 +436,14 @@ public class Mastodon implements Feeds {
 	}
 
 	private Message toMessage(PostStatusResult res){
-		var m = new Message( res.getId(), USER_NAME, this.domain, res.getText());
+		var addr = Formatter.getUserAddress(res.account.acct);
+		if(addr == null) {
+			addr = new UserAddress(
+					res.account.acct(),
+					res.account.acct().equals(USER_NAME) ?  this.domain : DEFAULT_MASTODON_DOMAIN
+			);
+		}
+		var m = new Message( res.getId(), addr.username(), addr.domain(), res.getText());
 		m.setCreationTime( res.getCreationTime() );
 		return m;
 	}
@@ -428,7 +487,31 @@ public class Mastodon implements Feeds {
 		return Result.error( ErrorCode.NOT_IMPLEMENTED );
 	}
 
-	private record MastodonAccount(String id, String username) { }
+	private Result<Long> searchAccountID(String user){
+
+		try{
+			final var request = new OAuthRequest(Verb.GET, getEndpoint(SEARCH_ACCOUNTS_PATH));
+			request.addQuerystringParameter(SEARCH_ACCOUNTS_QUERY_PARAM, user);
+			synchronized (service){
+				service.signRequest(accessToken, request);
+			}
+
+			var res = service.execute(request);
+			if( res.getCode()  == HTTP_OK ){
+				List<MastodonAccount> accounts = JSON.decode(res.getBody(), new TypeToken<List<MastodonAccount>>() { });
+				Log.info("searchAccountID: acc=" + accounts.toString());
+
+				return accounts.isEmpty() ? Result.error( ErrorCode.NOT_FOUND ) : Result.ok( accounts.get(0).accountID() );
+			}
+			Log.info(res.getBody());
+			return Result.error( res.getCode() );
+		}catch (Exception e){
+			e.printStackTrace();
+			return Result.error( ErrorCode.INTERNAL_ERROR );
+		}
+
+	}
+
 	private record PostStatusArgs(String status, String visibility) {
 		public PostStatusArgs(String msg) {
 			this(msg, "private");
@@ -448,37 +531,11 @@ public class Mastodon implements Feeds {
 		}
 	}
 
-	private Result<Long> searchAccountID(String user){
 
-		try{
-			final var request = new OAuthRequest(Verb.GET, getEndpoint(SEARCH_ACCOUNTS_PATH));
-			request.addQuerystringParameter(SEARCH_ACCOUNTS_QUERY_PARAM, user);
-			synchronized (service){
-				service.signRequest(accessToken, request);
-			}
-
-			var res = service.execute(request);
-			if( res.getCode()  == HTTP_OK ){
-				List<AccountsResult> accounts = JSON.decode(res.getBody(), new TypeToken<List<AccountsResult>>() { });
-				Log.info("searchAccountID: acc=" + accounts.toString());
-
-				return accounts.isEmpty() ? Result.error( ErrorCode.NOT_FOUND ) : Result.ok( accounts.get(0).accID() );
-			}
-			Log.info(res.getBody());
-			return Result.error( res.getCode() );
-		}catch (Exception e){
-			e.printStackTrace();
-			return Result.error( ErrorCode.INTERNAL_ERROR );
-		}
-
-	}
-
-
-	private record AccountsResult(String id, String acct, String display_name){
-		public long accID(){
+	private record MastodonAccount(String id, String acct, String display_name){
+		public long accountID(){
 			return Long.parseLong(this.id);
 		}
 	}
-
 
 }

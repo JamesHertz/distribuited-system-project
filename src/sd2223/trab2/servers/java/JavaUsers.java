@@ -54,10 +54,6 @@ public class JavaUsers extends JavaService implements Users {
 		}
 
 		var userAddress =  Formatter.makeUserAddress( user.getName() , this.domain );
-		/*
-			var feedsServer = this.getMyFeedsServer();
-			feedsServer.createFeed( userAddress );
-		 */
 		super.addRequest(
 				this.domain,
 				server -> server.createFeed( userAddress , secret )
