@@ -13,7 +13,6 @@ import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 
 import sd2223.trab2.api.Message;
-import sd2223.trab2.api.User;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
 import sd2223.trab2.clients.ClientFactory;
@@ -25,7 +24,6 @@ import sd2223.trab2.utils.Secret;
 
 import static sd2223.trab2.api.java.Result.ErrorCode;
 
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
@@ -34,12 +32,22 @@ public class Mastodon implements Feeds {
 	// urls :)
 	static String MASTODON_NOVA_SERVER_URI = "http://10.170.138.52:3000";
 	static String MASTODON_SOCIAL_SERVER_URI = "https://mastodon.social/";
-	static String MASTODON_SERVER_URI = MASTODON_SOCIAL_SERVER_URI;// MASTODON_NOVA_SERVER_URI;
+	static String MASTODON_SERVER_URI =  MASTODON_NOVA_SERVER_URI;
 
 	// APIs keys
-	private static final String clientKey = "Ptf9io1AU8nBV1rJyO3dzNqAuDDrRNDwpQ3o9VS1Kl8"; //"wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
-	private static final String clientSecret = "XGB_flbn_AAHNcFEx9nc_vMofcHWk-pVdiw5nJe7rHg"; //"sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
-	private static final String accessTokenStr = "uHYGEW4R2ODaAH8Tly_l_230kxpLcVb5AdMDhuqaaWQ"; //"IGfNFsn2KhsJE2iUbFLPzNU8CHuQ7_3FJxecydOyAn0";
+
+	/*
+	// social mastodon keys
+	private static final String clientKey = "Ptf9io1AU8nBV1rJyO3dzNqAuDDrRNDwpQ3o9VS1Kl8";
+	private static final String clientSecret = "XGB_flbn_AAHNcFEx9nc_vMofcHWk-pVdiw5nJe7rHg";
+	private static final String accessTokenStr = "uHYGEW4R2ODaAH8Tly_l_230kxpLcVb5AdMDhuqaaWQ";
+	 */
+
+
+	// profs mastodon keys
+	private static final String clientKey = "wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
+	private static final String clientSecret = "sKCdrhT48_mYRDo-G00vcUxZjS2QAKEqoncm6t3-Cg4";
+	private static final String accessTokenStr = "Tl5gfuLz_B-TO0V_sA4c-i4VYcI1aIg9i6zvLgjIErM";
 
 	// APIs paths
 	static final String STATUSES_PATH= "/api/v1/statuses";
@@ -77,13 +85,11 @@ public class Mastodon implements Feeds {
 				service.signRequest(accessToken, request);
 			}
 			var res = service.execute(request);
-			System.out.println(res.getBody());
 			if(res.getCode() == HTTP_OK){
 				var values = JSON.jsonToMap(res.getBody());
 				return Long.parseLong( values.get("id").toString() );
-			} else {
-				System.out.println(res.getBody());
 			}
+			Log.severe(res.getBody());
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -112,7 +118,8 @@ public class Mastodon implements Feeds {
 				var res = JSON.decode(response.getBody(), PostStatusResult.class);
 				return Result.ok(res.getId());
 			}
-			Log.info("ERROR: " + response.getBody());
+
+			Log.severe(response.getBody());
 			return Result.error(response.getCode());
 		} catch (Exception x) {
 			x.printStackTrace();
@@ -125,7 +132,7 @@ public class Mastodon implements Feeds {
 		Log.info(String.format("getMessages: user=%s ; time=%d", user, time));
 		var addr = Formatter.getUserAddress( user );
 		if( this.badAddress(addr) ) {
-			Log.info("Bad address.");
+			Log.severe("Bad address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
 
@@ -145,7 +152,7 @@ public class Mastodon implements Feeds {
 						   .toList()
 				);
 			}
-			Log.info("ERROR: " + response.getBody());
+			Log.severe(response.getBody());
 			return Result.error(response.getCode());
 		} catch (Exception x) {
 			x.printStackTrace();
@@ -168,7 +175,7 @@ public class Mastodon implements Feeds {
 			if( res.getCode() == HTTP_OK ){
 				return Result.ok();
 			}
-			Log.info("ERROR: " + res.getBody());
+			Log.severe(res.getBody());
 			return Result.error( res.getCode() );
 		}catch (Exception x){
 			x.printStackTrace();
@@ -182,7 +189,7 @@ public class Mastodon implements Feeds {
 		Log.info(String.format("getMessages: user=%s ; mid=%d", user, mid));
 		var addr = Formatter.getUserAddress( user );
 		if( this.badAddress(addr) ) {
-			Log.info("Bad address.");
+			Log.severe("Bad address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
 
@@ -196,7 +203,7 @@ public class Mastodon implements Feeds {
 				var aux = JSON.decode(res.getBody(), PostStatusResult.class);
 				return Result.ok(this.toMessage( aux ));
 			}
-			Log.info("ERROR: " + res.getBody());
+			Log.severe(res.getBody());
 			return Result.error(res.getCode());
 		}catch (Exception x){
 			x.printStackTrace();
@@ -223,14 +230,15 @@ public class Mastodon implements Feeds {
 
 		var addr = Formatter.getUserAddress(user);
 		if( badAddress(addr) ){
-			Log.info("Bad request.");
+			Log.severe("Bad request.");
 			return Result.error(ErrorCode.BAD_REQUEST);
 		}
 
-		if(! hasUser( addr.username() )){
-			Log.info("User not found.");
+		if(! userExists( addr.username() )){
+			Log.severe("User not found.");
 			return Result.error(ErrorCode.NOT_FOUND);
 		}
+
 		try{
 			final var request = new OAuthRequest(Verb.GET, getEndpoint(ACCOUNT_FOLLOWING_PATH, accountID));
 			synchronized (service){
@@ -245,7 +253,7 @@ public class Mastodon implements Feeds {
 								.toList()
 				);
 			}
-			Log.info("ERROR: " + res.getBody());
+			Log.severe(res.getBody());
 			return Result.error( res.getCode() );
 		}catch (Exception e){
 			e.printStackTrace();
@@ -256,10 +264,21 @@ public class Mastodon implements Feeds {
 	@Override
 	public Result<Void> createFeed(String user, String secret) {
 		Log.info(String.format("createFeed: user=%s ; secret=%s", user, secret));
-		var err = this.checkUsersServerRequest(user, secret);
-		if( !err.isOK() ) return Result.error( err.error() );
-		// TODO: add check to not exists
+
+		if(! Secret.getSecret().equals(secret) ){
+			Log.severe("Wrong secret, cannot perform operation");
+			return Result.error( ErrorCode.FORBIDDEN );
+		}
+
+		var addr = Formatter.getUserAddress(user);
+		if( badAddress(addr) || !USER_NAME.equals(addr.username()) ){
+			Log.severe("Bad user address.");
+			return Result.error( ErrorCode.BAD_REQUEST );
+		}
+
 		userExists.set(true);
+
+		Log.info("Feed created.");
 		return Result.ok();
 	}
 
@@ -270,6 +289,8 @@ public class Mastodon implements Feeds {
 		if( !err.isOK() ) return Result.error( err.error() );
 		// TODO: add check to exists
 		userExists.set(false);
+
+		Log.info("User removed with success.");
 		return Result.ok();
 	}
 
@@ -278,18 +299,18 @@ public class Mastodon implements Feeds {
 	private Result<Void> checkUsersServerRequest(String user, String secret){
 		var address = Formatter.getUserAddress(user);
 		if( badAddress(address) ){
-			Log.info("Bad request.");
+			Log.severe("Bad request.");
 			return Result.error(ErrorCode.BAD_REQUEST);
 		}
 
 		var realSecret = Secret.getSecret();
 		if(!realSecret.equals(secret)) {
-			Log.info("Wrong secret.");
+			Log.severe("Wrong secret.");
 			return Result.error( ErrorCode.FORBIDDEN );
 		}
 
-		if( ! this.hasUser(address.username()) ){
-			Log.info("User not found.");
+		if( ! this.userExists(address.username()) ){
+			Log.severe("User not found.");
 			return Result.error( ErrorCode.NOT_FOUND );
 		}
 
@@ -299,12 +320,12 @@ public class Mastodon implements Feeds {
 	private Result<Void> checkParameters(String user, String pwd){
 		var addr = Formatter.getUserAddress(user);
 		if( pwd == null || this.badAddress( addr ) ){
-			Log.info("Bad address.");
+			Log.severe("Bad address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
 
-		if( !this.hasUser( addr.username() ) ){
-			Log.info("User not found.");
+		if( !this.userExists( addr.username() ) ){
+			Log.severe("User not found.");
 			return Result.error( ErrorCode.NOT_FOUND );
 		}
 
@@ -323,7 +344,7 @@ public class Mastodon implements Feeds {
 		return m;
 	}
 
-	private boolean hasUser(String username){
+	private boolean userExists(String username){
 		return userExists.get() && USER_NAME.equals(username);
 	}
 
