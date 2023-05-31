@@ -78,7 +78,8 @@ public class Mastodon implements Feeds {
 		this.accessToken = new OAuth2AccessToken(accessTokenStr);
 		this.domain = domain;
 		this.userExists = new AtomicBoolean(false);
-		this.accountID = this.getAccountID();
+		this.accountID = 110321412226138318L; //this.getAccountID(); // by now (TODO: change Clients to receive clientID)
+		Log.info("accountID=" + accountID);
 	}
 
 	private long getAccountID(){
@@ -146,7 +147,6 @@ public class Mastodon implements Feeds {
 			}
 			Response response = service.execute(request);
 			if (response.getCode() == HTTP_OK) {
-				// System.out.println("getMessage: " + response.getBody());
 				List<PostStatusResult> res = JSON.decode(response.getBody(), new TypeToken<List<PostStatusResult>>() { });
 				return Result.ok(
 						res.stream()
@@ -368,7 +368,7 @@ public class Mastodon implements Feeds {
 	}
 	private Result<UserAddress> validateSubUnsubParameters(String user, String userSub, String pwd){
 		var localAddr = Formatter.getUserAddress(user);
-		var subAddr = Formatter.getUserAddress(user);
+		var subAddr   = Formatter.getUserAddress(userSub);
 		if( pwd == null || subAddr == null || user.equals(userSub) || badLocalUserAddress(localAddr) ){
 			Log.severe("Bad user address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
@@ -390,16 +390,16 @@ public class Mastodon implements Feeds {
 
 	// my private methods
 	private Result<Void> checkUsersServerRequest(String user, String secret){
-		var address = Formatter.getUserAddress(user);
-		if( badLocalUserAddress(address) ){
-			Log.severe("Bad request.");
-			return Result.error(ErrorCode.BAD_REQUEST);
-		}
-
 		var realSecret = Secret.getSecret();
 		if(!realSecret.equals(secret)) {
 			Log.severe("Wrong secret.");
 			return Result.error( ErrorCode.FORBIDDEN );
+		}
+
+		var address = Formatter.getUserAddress(user);
+		if( badLocalUserAddress(address) ){
+			Log.severe("Bad request.");
+			return Result.error(ErrorCode.BAD_REQUEST);
 		}
 
 		if( ! this.userExists(address.username()) ){
@@ -427,6 +427,8 @@ public class Mastodon implements Feeds {
 
 	private Result<Void> checkPassword(String pwd){
 		// TODO: add error here :)
+		Log.info("serviceID=" + Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE));
+
 		var uris = Discovery.getInstance().knownUrisOf(
 				Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE),
 				1

@@ -10,9 +10,11 @@ import sd2223.trab2.servers.rest.resources.RestUsersResource;
 
 import javax.net.ssl.SSLContext;
 import java.net.URI;
+import java.util.logging.Logger;
 
 public class RestServer {
 
+    private static final Logger Log = Logger.getLogger(RestServer.class.getName());
     public static void runServer(URI serverURI, Service.ServiceType stype, Service service){
         try {
             ResourceConfig config = new ResourceConfig();
@@ -22,7 +24,7 @@ public class RestServer {
             }
 
             JdkHttpServerFactory.createHttpServer(serverURI, config, SSLContext.getDefault());
-            System.out.printf("%s Rest Server ready @ %s\n", service, serverURI);
+            Log.info(String.format("%s Rest Server ready @ %s\n", stype, serverURI));
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }

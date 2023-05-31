@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 [ ! "$(docker network ls | grep sdnet )" ] && \
 	docker network create --driver=bridge --subnet=172.20.0.0/16 sdnet
 

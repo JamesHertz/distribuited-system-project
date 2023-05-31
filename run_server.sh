@@ -13,6 +13,8 @@ do
     -b|--build)
       echo "building project"
       mvn compile assembly:single docker:build
+      clear
+      echo "project built..."
     ;;
     -p|--port)
       echo "exposing port... "

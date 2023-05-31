@@ -20,6 +20,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
 public class RestClient {
+    // TODO: make it receive an id instead of an URL
     private static Logger Log = Logger.getLogger(RestClient.class.getName());
 
     protected static final int READ_TIMEOUT = 5000;

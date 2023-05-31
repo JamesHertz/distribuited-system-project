@@ -4,6 +4,7 @@ package sd2223.trab2.servers.soap;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
@@ -23,6 +24,7 @@ public class SoapServer {
 //		System.setProperty("com.sun.xml.ws.transport.http.HttpAdapter.dump", "true");
 //		System.setProperty("com.sun.xml.internal.ws.transport.http.HttpAdapter.dump", "true");
 
+	private static final Logger Log = Logger.getLogger(SoapServer.class.getName());
 
 	public static void runServer(URI serverURI, Service.ServiceType stype, Service service){
 		try {
@@ -40,7 +42,7 @@ public class SoapServer {
 			endpoint.publish(server.createContext(serverURI.getPath()));
 			server.start();
 
-			System.out.printf("%s Soap Server ready @ %s\n", service, serverURI);
+			Log.info(String.format("%s Soap Server ready @ %s\n", stype, serverURI));
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
 		}
