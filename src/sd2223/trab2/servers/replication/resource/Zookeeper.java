@@ -72,10 +72,12 @@ public class Zookeeper implements Watcher {
 		/*
 
 	ZookeeperNode {
+		Zookeeper( .... ){};
 		RepServerInfo getPrimary();
 		Long getNodeId()
 		List<RepServerInfo> getServers();
 		boolean isConnected();
+		State getCurrentState(); -> Disconnected | primary | Secondary
 	}
 
 	RepResource {
