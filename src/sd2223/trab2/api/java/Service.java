@@ -4,4 +4,7 @@ public interface Service  {
     enum ServiceType {
         USERS, FEEDS;
     }
+    enum RepServerType {
+        PRIMARY, OTHER;
+    }
 }

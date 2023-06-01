@@ -31,8 +31,8 @@ public class Formatter {
      * @param port the server port
      * @return a rest URI (ends with /rest)
      */
-    public static URI getRestURI(String host, int port){
-        return URI.create(String.format(REST_SERVER_FMT, host, port));
+    public static URI getRestURI(String host){
+        return URI.create(String.format(REST_SERVER_FMT, host, REST_PORT));
     }
 
     /**
@@ -40,8 +40,8 @@ public class Formatter {
      * @param port the server port
      * @return a SOAP URI (ends with /soap)
      */
-    public static URI getSoapURI(String host, int port) {
-        return URI.create(String.format(SOAP_SERVER_FMT, host, port));
+    public static URI getSoapURI(String host) {
+        return URI.create(String.format(SOAP_SERVER_FMT, host, SOAP_PORT));
     }
 
     /**

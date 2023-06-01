@@ -35,7 +35,7 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public void createFeed(String user, String secret) {
+    public void createFeed(Long version, String user, String secret) {
         super.fromJavaResult( impl.createFeed(user, secret) );
     }
 
@@ -55,32 +55,32 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public List<Message> subscribeServer(String domain, String user, String secret) {
+    public List<Message> subscribeServer(Long version, String domain, String user, String secret) {
         return super.fromJavaResult( impl.subscribeServer(domain, user, secret) );
     }
 
     @Override
-    public void createExtFeedMessage(String user, String secret, Message msg) {
+    public void createExtFeedMessage(Long version, String user, String secret, Message msg) {
         super.fromJavaResult( impl.createExtFeedMessage(user, secret, msg) );
     }
 
     @Override
-    public void removeExtFeedMessage(String user, long mid, String secret) {
+    public void removeExtFeedMessage(Long version, String user, long mid, String secret) {
         super.fromJavaResult( impl.removeExtFeedMessage(user, mid, secret) );
     }
 
     @Override
-    public void removeFeed(String user, String secret) {
+    public void removeFeed(Long version, String user, String secret) {
         super.fromJavaResult( impl.removeFeed(user, secret) );
     }
 
     @Override
-    public void removeExtFeed(String user, String secret) {
+    public void removeExtFeed(Long version, String user, String secret) {
         super.fromJavaResult( impl.removeExtFeed(user, secret) );
     }
 
     @Override
-    public void unsubscribeServer(String domain, String user, String secret) {
+    public void unsubscribeServer(Long version, String domain, String user, String secret) {
         super.fromJavaResult( impl.unsubscribeServer(domain, user, secret) );
     }
 

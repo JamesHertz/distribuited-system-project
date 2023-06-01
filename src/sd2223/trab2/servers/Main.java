@@ -22,6 +22,7 @@ import static sd2223.trab2.utils.Formatter.*;
 
 // last-test: 104b
 public class Main {
+    // TODO: use secret on JavaFeeds
     public static void main(String[] args) throws UnknownHostException {
         System.out.println("args: " + Arrays.toString(args));
         var parser = ArgumentParsers.newFor("MyProj2").build()
@@ -88,10 +89,10 @@ public class Main {
 
         URI serverURI;
         if("rest".equals(protocol)){
-            serverURI = getRestURI(serverName, REST_PORT);
+            serverURI = getRestURI(serverName);
             RestServer.runServer(serverURI, stype, service);
         } else {
-            serverURI = getSoapURI(serverName, SOAP_PORT);
+            serverURI = getSoapURI(serverName);
             SoapServer.runServer(serverURI, stype, service);
         }
 
