@@ -90,8 +90,8 @@ public class Mastodon implements Feeds {
 			}
 			var res = service.execute(request);
 			if(res.getCode() == HTTP_OK){
-				var values = JSON.decode(res.getBody(), MastodonAccount.class);
-				return values.accountID();
+				var account = JSON.decode(res.getBody(), MastodonAccount.class);
+				return account.accountID();
 			}
 			Log.severe(res.getBody());
 		}catch (Exception e) {
@@ -138,6 +138,11 @@ public class Mastodon implements Feeds {
 		if( this.badLocalUserAddress(addr) ) {
 			Log.severe("Bad address.");
 			return Result.error( ErrorCode.BAD_REQUEST );
+		}
+
+		if(! userExists(addr.username()) ){
+			Log.severe("User doesn't exist.");
+			return Result.error( ErrorCode.NOT_FOUND );
 		}
 
 		try {
