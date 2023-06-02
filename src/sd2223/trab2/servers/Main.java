@@ -1,4 +1,5 @@
 package sd2223.trab2.servers;
+
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
@@ -28,28 +29,46 @@ public class Main {
         var parser = ArgumentParsers.newFor("MyProj2").build()
                 .defaultHelp(true).description("our second distributed system project");
 
-        parser.addArgument("domain")
+        final String DOMAIN = "domain";
+        final String DOMAIN_HELP = "the server domain";
+        final String BASE_NUMBER = "base_number";
+        final String BASE_NUMBER_HELP = "base number for feeds server IDs";
+        final String SERVICE = "service";
+        final String SERVICE_CHOICES = "feeds";
+        final String SERVICE_HELP = "define the service type";
+        final String PRIMARY = "--primary";
+        final String PRIMARY_ACTION_HELP = "if the node is primary or not";
+        final String PROTOCOL = "protocol";
+        final String PROTOCOL_CHOICES = "soap";
+        final String PROTOCOL_HELP = "choose the protocol used";
+        final String SECRET = "secret";
+        final String SECRET_METAVAR = "secret";
+        final String SECRET_HELP = "the secret shared by the servers";
+        final String ERROR_MISSING_BASE_NUMBER = "Error: Missing base_number";
+        final String REST_PROTOCOL = "rest";
+
+        parser.addArgument(DOMAIN)
                 .type(String.class)
-                .help("the server domain");
-        parser.addArgument("base_number")
+                .help(DOMAIN_HELP);
+        parser.addArgument(BASE_NUMBER)
                 .type(Long.class)
                 .nargs("?")
-                .help("base number for feeds server IDs");
-        parser.addArgument("-s", "--service")
-                .choices("feeds", "users", "proxy") // TODO: constants later
+                .help(BASE_NUMBER_HELP);
+        parser.addArgument("-s", "--" + SERVICE)
+                .choices(SERVICE_CHOICES) // TODO: constants later
                 .required(true)
-                .help("define the service type");
-        parser.addArgument("--primary") // define a boolean flag :)
+                .help(SERVICE_HELP);
+        parser.addArgument(PRIMARY)
                 .action(storeTrue())
-                .help("if there the node is primary or not");
-        parser.addArgument("-p" ,"--protocol") // define a boolean flag :)
-                .choices("soap", "rest") // TODO: do constants later :)
+                .help(PRIMARY_ACTION_HELP);
+        parser.addArgument("-p", "--" + PROTOCOL)
+                .choices(PROTOCOL_CHOICES) // TODO: do constants later :)
                 .required(true)
-                .help("choose the protocol used");
-        parser.addArgument("-S", "--secret")
-                .metavar("secret")
+                .help(PROTOCOL_HELP);
+        parser.addArgument("-S", "--" + SECRET)
+                .metavar(SECRET_METAVAR)
                 .required(true)
-                .help("the secret share by the servers");
+                .help(SECRET_HELP);
 
         Namespace ns = null;
         try {
@@ -59,41 +78,52 @@ public class Main {
             System.exit(1);
         }
 
-        var domain = ns.getString("domain");
-        var protocol = ns.getString("protocol");
-        Secret.setSecret( ns.getString("secret") );
+        Secret.setSecret(ns.getString(SECRET));
 
-        var stype = Service.ServiceType.USERS;
-        Service service = switch (ns.getString("service")){
-            case USERS_SERVICE -> new JavaUsers(domain);
-            case FEEDS_SERVICE -> {
-                var baseNumber = ns.getLong("base_number");
-                if(baseNumber == null ){
-                    System.out.println("Error: Missing base_number");
+        final String USERS_SERVICE = "users";
+        final String FEEDS_SERVICE = "feeds";
+        final String PROXY_SERVICE = "proxy";
+        final String SERVER_ID_FORMAT = "%s_%s";
+
+        String domain = ns.getString(DOMAIN);
+        String protocol = ns.getString(PROTOCOL);
+
+        Service service = null;
+        Service.ServiceType serviceType = null;
+
+        switch (ns.getString(SERVICE)) {
+            case USERS_SERVICE:
+                service = new JavaUsers(domain);
+                break;
+            case FEEDS_SERVICE:
+                Long baseNumber = ns.getLong(BASE_NUMBER);
+                if (baseNumber == null) {
+                    System.out.println(ERROR_MISSING_BASE_NUMBER);
                     parser.printUsage();
                     System.exit(1);
                 }
-                stype = Service.ServiceType.FEEDS;
-                yield new JavaFeeds(domain, baseNumber);
-            }
-            case "proxy" -> {
-               protocol = "rest";
-               stype = Service.ServiceType.FEEDS;
-               yield new Mastodon(domain);
-            }
-            default ->  null;
-        };
+                serviceType = Service.ServiceType.FEEDS;
+                service = new JavaFeeds(domain, baseNumber);
+                break;
+            case PROXY_SERVICE:
+                protocol = REST_PROTOCOL;
+                serviceType = Service.ServiceType.FEEDS;
+                service = new Mastodon(domain);
+                break;
+            default:
+                break;
+        }
 
-        String serverID = getServiceID(domain, stype.toString().toLowerCase());
+        String serverID = String.format(SERVER_ID_FORMAT, domain, serviceType.toString().toLowerCase());
         String serverName = InetAddress.getLocalHost().getHostName();
 
         URI serverURI;
-        if("rest".equals(protocol)){
+        if (REST_PROTOCOL.equals(protocol)) {
             serverURI = getRestURI(serverName);
-            RestServer.runServer(serverURI, stype, service);
+            RestServer.runServer(serverURI, serviceType, service);
         } else {
             serverURI = getSoapURI(serverName);
-            SoapServer.runServer(serverURI, stype, service);
+            SoapServer.runServer(serverURI, serviceType, service);
         }
 
         Discovery ds = Discovery.getInstance();
