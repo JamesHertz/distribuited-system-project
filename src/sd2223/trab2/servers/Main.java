@@ -1,14 +1,20 @@
 package sd2223.trab2.servers;
+
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
+import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Service;
+import static sd2223.trab2.api.java.Service.ServiceType.USERS;
+import static sd2223.trab2.api.java.Service.Protocol.SOAP;
 import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.servers.java.JavaFeeds;
 import sd2223.trab2.servers.java.JavaUsers;
 import sd2223.trab2.servers.proxy.Mastodon;
+import sd2223.trab2.servers.replication.ReplicatedServer;
 import sd2223.trab2.servers.rest.RestServer;
 import sd2223.trab2.servers.soap.SoapServer;
+import sd2223.trab2.utils.Formatter;
 import sd2223.trab2.utils.Secret;
 
 import java.net.InetAddress;
@@ -23,15 +29,20 @@ import static sd2223.trab2.utils.Formatter.*;
 // last-test: 104b
 public class Main {
     // TODO: use secret on JavaFeeds
+
+    private static final String DOMAIN = "domain";
+    private static final String DOMAIN_HELP = "the server domain";
+    private static final String BASE_NUMBER = "base_number";
+    private static final String SECRET_HELP = "the secret shared by the servers";
     public static void main(String[] args) throws UnknownHostException {
         System.out.println("args: " + Arrays.toString(args));
         var parser = ArgumentParsers.newFor("MyProj2").build()
                 .defaultHelp(true).description("our second distributed system project");
 
-        parser.addArgument("domain")
+        parser.addArgument(DOMAIN)
                 .type(String.class)
-                .help("the server domain");
-        parser.addArgument("base_number")
+                .help(DOMAIN_HELP);
+        parser.addArgument(BASE_NUMBER)
                 .type(Long.class)
                 .nargs("?")
                 .help("base number for feeds server IDs");
@@ -42,9 +53,8 @@ public class Main {
         parser.addArgument("-S", "--secret")
                 .metavar("secret")
                 .required(true)
-                .help("the secret share by the servers");
+                .help(SECRET_HELP);
 
-        // server_type = { proxy, rest_feeds, rest_users, soap_feeds, soap_users, replication }
         Namespace ns = null;
         try {
             ns = parser.parseArgs(args);
@@ -54,44 +64,46 @@ public class Main {
         }
 
         var domain = ns.getString("domain");
-        var service = ns.getString("protocol");
+        var service = ns.getString("service");
         Secret.setSecret( ns.getString("secret") );
 
-        /*
-        var stype = Service.ServiceType.USERS;
-        Service service = switch (ns.getString("service")){
-            case USERS_SERVICE -> new JavaUsers(domain);
-            case FEEDS_SERVICE -> {
+        var serverProtocol = switch (service){
+            case "rest_feeds", "rest_users", "proxy" -> Service.Protocol.REST;
+            case "soap_feeds", "soap_users" -> Service.Protocol.SOAP;
+            default -> Service.Protocol.REPLICATION;
+        };
+
+        var serviceType= switch (service){
+            case "rest_feeds", "soap_feeds", "replication" -> Service.ServiceType.FEEDS;
+            case "rest_users", "soap_users" -> Service.ServiceType.USERS;
+            default -> Service.ServiceType.PROXY;
+        };
+
+        Service svc = switch (serviceType){
+            case USERS -> new JavaUsers(domain);
+            case PROXY -> new Mastodon(domain);
+            case FEEDS -> {
                 var baseNumber = ns.getLong("base_number");
                 if(baseNumber == null ){
-                    System.out.println("Error: Missing base_number");
+                    System.err.println("Error: Missing base_number");
                     parser.printUsage();
                     System.exit(1);
                 }
-                stype = Service.ServiceType.FEEDS;
                 yield new JavaFeeds(domain, baseNumber);
             }
-            case "proxy" -> {
-               stype = Service.ServiceType.FEEDS;
-               yield new Mastodon(domain);
-            }
-            default ->  null;
         };
 
-        String serverID = getServiceID(domain, stype.toString().toLowerCase());
         String serverName = InetAddress.getLocalHost().getHostName();
+        String serverID   = Formatter.getServiceID(domain, serviceType == USERS ? USERS_SERVICE : FEEDS_SERVICE);
+        URI serverURI     = serverProtocol == SOAP ? getSoapURI(serverName) : getRestURI(serverName);
 
-        URI serverURI;
-        if("rest".equals(protocol)){
-            serverURI = getRestURI(serverName);
-            RestServer.runServer(serverURI, stype, service);
-        } else {
-            serverURI = getSoapURI(serverName);
-            SoapServer.runServer(serverURI, stype, service);
+        switch (serverProtocol){
+            case REST -> RestServer.runServer(serverURI, serviceType, svc);
+            case SOAP -> SoapServer.runServer(serverURI, serviceType, svc);
+            case REPLICATION -> ReplicatedServer.runServer(serverURI, serverID, (Feeds) svc);
         }
 
         Discovery ds = Discovery.getInstance();
         ds.announce(serverID, serverURI.toString());
-         */
     }
 }
