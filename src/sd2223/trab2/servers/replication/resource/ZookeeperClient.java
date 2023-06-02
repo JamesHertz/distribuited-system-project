@@ -2,20 +2,21 @@ package sd2223.trab2.servers.replication.resource;
 
 import org.apache.zookeeper.*;
 import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.regex.Pattern;
 
 
-public class Zookeeper implements Watcher {
+public class ZookeeperClient implements Watcher {
 
 	static final String SERVERS = "zookeeper";
 	private ZooKeeper _client;
 	private final int TIMEOUT = 5000;
 	private String rootAppID;
 
-	public Zookeeper(String rootNode) throws Exception {
+	public ZookeeperClient(String rootNode) throws Exception {
 		this.connect(SERVERS, TIMEOUT);
 	}
 
@@ -76,8 +77,7 @@ public class Zookeeper implements Watcher {
 		RepServerInfo getPrimary();
 		Long getNodeId()
 		List<RepServerInfo> getServers();
-		boolean isConnected();
-		State getCurrentState(); -> Disconnected | primary | Secondary
+		State getCurrentState(); -> DISCONNECTED | PRIMARY | OTHER
 	}
 
 	RepResource {
@@ -128,4 +128,23 @@ public class Zookeeper implements Watcher {
 			}
 		}
 	}
+
+	public List<RepServerInfo> getServers(){
+		try {
+			List<RepServerInfo> res = new ArrayList<>();
+			for (var server : client().getChildren(this.rootAppID, false)) {
+				var data = client().getData(this.rootAppID + "/" + server, false, null);
+				res.add( new RepServerInfo(
+								Long.parseLong(server), URI.create( new String( data ) )
+						)
+				);
+			}
+			return res;
+		} catch (KeeperException | InterruptedException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public record RepServerInfo(Long serverID, URI severURI){};
 }

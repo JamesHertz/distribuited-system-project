@@ -3,7 +3,6 @@ package sd2223.trab2.servers.replication.resource;
 import sd2223.trab2.api.Message;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.rest.FeedsService;
-import sd2223.trab2.utils.Formatter;
 
 import static  sd2223.trab2.servers.replication.ReplicatedServer.VersionProvider;
 
@@ -12,7 +11,7 @@ import java.util.List;
 
 public class ReplicatedResource implements FeedsService, VersionProvider {
     private final Feeds impl;
-    private final Zookeeper zk;
+    private final ZookeeperClient zk;
     private long version = 0L;
 
     /*
@@ -21,7 +20,7 @@ public class ReplicatedResource implements FeedsService, VersionProvider {
 
     public ReplicatedResource(Feeds impl, String serviceID, URI serverURI, boolean is_primary) throws  Exception{
         this.impl = impl;
-        this.zk = new Zookeeper(serviceID);
+        this.zk = new ZookeeperClient(serviceID);
         if(is_primary) zk.createRootNode();
     }
 
