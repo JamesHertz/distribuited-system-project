@@ -17,8 +17,8 @@ import static  sd2223.trab2.servers.replication.ReplicatedServer.VersionProvider
 
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class ReplicatedResource  extends RestResource implements ReplicatedFeedsService, VersionProvider{
     private final Feeds impl;
@@ -40,19 +40,28 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
                         CREATE_MESSAGE, user, pwd, JSON.encode(msg)
                 );
                 CountDownLatch cd = new CountDownLatch(1); // todo: look at this later
+                var errors = new ConcurrentLinkedDeque<Result<?>>();
                 for(var server : this.zk.getServers()){
                     if(server.serverID() == this.zk.getServerID()) continue;
                     new Thread( () -> {
                         var client = ClientFactory.getReplicatedClient(server.severURI(), this);
-                        var res = client.update(Secret.getSecret(), up);
-                        if(res.isOK()) cd.countDown();
+                        errors.add(
+                                client.update(Secret.getSecret(), up)
+                        );
+                        cd.countDown();
                     }).start();
                 }
                 try{
-                    cd.await(10, TimeUnit.SECONDS);
-                }catch (InterruptedException ignore){ }
-                if( cd.getCount() == 2 ) {
-                    // error
+                    cd.await();
+                }catch (InterruptedException ignore){
+                    // PANIC
+                }
+
+                for(var err : errors){
+                    if(err.isOK())
+                        return impl.postMessage(user, pwd, msg).value();
+                    if (err.error() != Result.ErrorCode.TIMEOUT )
+                        return  -1; // error :)
                 }
             }
             case OTHER -> {
@@ -63,7 +72,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
                 );
             }
             case DISCONNECTED -> {
-                System.out.println("server down return error :)");
+                System.out.println("server down return error :)"); // 503 (server unavailable)
             }
         }
         return 0L;
