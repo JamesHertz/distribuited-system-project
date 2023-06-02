@@ -14,15 +14,11 @@ public class ReplicatedResource implements FeedsService, VersionProvider {
     private final ZookeeperClient zk;
     private long version = 0L;
 
-    /*
-        -> track de que n'os nos somoso
-     */
-
-    // incrementar a versao
-    public ReplicatedResource(Feeds impl, String serviceID, URI serverURI, boolean is_primary) throws  Exception{
+    public ReplicatedResource(Feeds impl, String serviceID, URI serverURI) throws  Exception{
         this.impl = impl;
-        this.zk = new ZookeeperClient(serviceID);
-        if(is_primary) zk.createRootNode();
+        this.zk = new ZookeeperClient(serviceID, serverURI.toString(), w -> {
+            System.out.println("doing something fun :)");
+        });
     }
 
     @Override
