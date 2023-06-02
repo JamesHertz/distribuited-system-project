@@ -99,7 +99,7 @@ public class ZookeeperClient {
 		// TODO: think about this
 		serverID = Long.parseLong( res.split("/")[2] );
 	}
-	private void createRootNode(){
+	void createRootNode(){
 		this.createNode(this.rootNode, new byte[0], CreateMode.PERSISTENT);
 	}
 
