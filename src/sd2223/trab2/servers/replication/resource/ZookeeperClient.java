@@ -63,7 +63,7 @@ public class ZookeeperClient implements Watcher{
 		return this.primaryNode;
 	}
 
-	public Long getNodeId(){
+	public Long getServerID(){
 		return this.serverID;
 	}
 
@@ -196,6 +196,6 @@ public class ZookeeperClient implements Watcher{
 		PRIMARY, OTHER, DISCONNECTED;
 	}
 
-	public record RepServerInfo(Long serverID, URI severURI) { };
+	public record RepServerInfo(long serverID, URI severURI) { };
 
 }

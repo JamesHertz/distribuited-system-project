@@ -1,19 +1,26 @@
 package sd2223.trab2.servers.replication.resource;
 
-import io.netty.util.Timeout;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import sd2223.trab2.api.Message;
+import static  sd2223.trab2.api.Operations.*;
+import sd2223.trab2.api.Update;
 import sd2223.trab2.api.java.Feeds;
-import sd2223.trab2.api.rest.FeedsService;
+import sd2223.trab2.api.java.Result;
+import sd2223.trab2.api.replication.ReplicatedFeedsService;
 import sd2223.trab2.clients.ClientFactory;
 import sd2223.trab2.servers.rest.resources.RestResource;
+import sd2223.trab2.utils.JSON;
+import sd2223.trab2.utils.Secret;
 
 import static  sd2223.trab2.servers.replication.ReplicatedServer.VersionProvider;
 
 import java.net.URI;
 import java.util.List;
-import java.util.function.Function;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
-public class ReplicatedResource  extends RestResource implements FeedsService, VersionProvider{
+public class ReplicatedResource  extends RestResource implements ReplicatedFeedsService, VersionProvider{
     private final Feeds impl;
     private final ZookeeperClient zk;
     private long version = 0L;
@@ -27,31 +34,39 @@ public class ReplicatedResource  extends RestResource implements FeedsService, V
 
     @Override
     public long postMessage(Long version, String user, String pwd, Message msg) {
-        boolean atLeastOne = false;
-        if(zk.getState() == ZookeeperClient.State.PRIMARY){
-            //Primeiro, executar nos outros, e quanto pelo menos 1 responder, eu retorno o resultado
-
-            var servers = zk.getServers();
-
-            for (var server : servers) {
-                var client = ClientFactory.getFeedsClient(server.severURI());
-                var res = client.postMessage(user, pwd, msg); //Outro server tenta fazer...
-
-                if(res.isOK()){ //Se pelo menos 1 conseguir
-                    atLeastOne = true; //Agora sabemos que vamos responder
+        switch (this.zk.getState()){
+            case PRIMARY -> {
+                Update up = Update.toUpdate(
+                        CREATE_MESSAGE, user, pwd, JSON.encode(msg)
+                );
+                CountDownLatch cd = new CountDownLatch(1); // todo: look at this later
+                for(var server : this.zk.getServers()){
+                    if(server.serverID() == this.zk.getServerID()) continue;
+                    new Thread( () -> {
+                        var client = ClientFactory.getReplicatedClient(server.severURI(), this);
+                        var res = client.update(Secret.getSecret(), up);
+                        if(res.isOK()) cd.countDown();
+                    }).start();
+                }
+                try{
+                    cd.await(10, TimeUnit.SECONDS);
+                }catch (InterruptedException ignore){ }
+                if( cd.getCount() == 2 ) {
+                    // error
                 }
             }
-            if(atLeastOne) { //Se pelo menos 1 secundario responder, entao temos seguranca que pelo menos 1 replica got our back
-                var res = impl.postMessage(user, pwd, msg);
-                return super.fromJavaResult(res); //Entao respondemos
-            }else{
-                return 0; //Erro...
+            case OTHER -> {
+                throw new WebApplicationException(
+                        Response.temporaryRedirect(
+                                this.zk.getPrimaryNode().severURI()
+                        ).build()
+                );
             }
-        }else{
-            //Forward to primary
-
-            return 0;
+            case DISCONNECTED -> {
+                System.out.println("server down return error :)");
+            }
         }
+        return 0L;
     }
 
     @Override
@@ -121,7 +136,19 @@ public class ReplicatedResource  extends RestResource implements FeedsService, V
     }
 
     @Override
-    public long getCurrentVersion() {
+    public void update(Long version, String secret, Update update) {
+
+    }
+
+    @Override
+    public List<Update> getOperations(Long version, String secret) {
+        return null;
+    }
+
+
+    @Override
+    public synchronized long getCurrentVersion() {
         return this.version;
     }
+
 }

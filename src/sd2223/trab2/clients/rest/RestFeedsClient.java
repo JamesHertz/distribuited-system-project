@@ -5,19 +5,30 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import sd2223.trab2.api.Message;
+import sd2223.trab2.api.Update;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
+import sd2223.trab2.api.replication.ReplicatedClient;
+import sd2223.trab2.api.replication.ReplicatedFeedsService;
 import sd2223.trab2.api.rest.FeedsService;
+import static  sd2223.trab2.servers.replication.ReplicatedServer.VersionProvider;
 
 import java.net.URI;
 import java.util.List;
 
-public class RestFeedsClient extends RestClient implements Feeds {
+public class RestFeedsClient extends RestClient implements ReplicatedClient {
 
+    static final VersionProvider defaultVersionProvider = () -> 0L; // TODO: change this default to return whatever I received :)
     final WebTarget target;
+    final VersionProvider provider;
     public RestFeedsClient(URI serverURI) {
+        this(serverURI, defaultVersionProvider);
+    }
+
+    public RestFeedsClient(URI serverURI, VersionProvider provider) {
         super(serverURI);
-        target = client.target( serverURI ).path(FeedsService.PATH);
+        this.target = client.target( serverURI ).path(FeedsService.PATH);
+        this.provider = provider;
     }
 
     @Override
@@ -35,6 +46,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
         return super.reTry(() -> {
             var r = target.path(user).path(String.valueOf(mid))
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .get();
             return super.toJavaResult(r, Message.class);
         });
@@ -46,6 +58,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
             var r = target.path(user)
                     .queryParam(FeedsService.TIME, time)
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .get();
             return super.toJavaResult(r, new GenericType<>(){});
         });
@@ -73,6 +86,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
                     .path(domain).path(user)
                     .queryParam(FeedsService.SECRET, secret)
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .post(Entity.json(null));
             return super.toJavaResult(r, new GenericType<>(){});
         });
@@ -85,6 +99,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
                     .path(domain).path(user)
                     .queryParam(FeedsService.SECRET, secret)
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .delete();
             return super.toJavaResult(r, Void.class);
         });
@@ -95,6 +110,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
         return super.reTry( () -> {
             var r = target.queryParam(FeedsService.SECRET, secret)
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .post(Entity.entity(user, MediaType.APPLICATION_JSON_TYPE));
             return super.toJavaResult(r, Void.class);
         });
@@ -107,6 +123,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
                     .path(user)
                     .queryParam(FeedsService.SECRET, secret)
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .post(Entity.entity(msg, MediaType.APPLICATION_JSON_TYPE ));
             return super.toJavaResult(r, Void.class);
         });
@@ -120,6 +137,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
                     .path(String.valueOf(mid))
                     .queryParam(FeedsService.SECRET, secret)
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .delete();
             return super.toJavaResult(res, Void.class);
         });
@@ -131,6 +149,7 @@ public class RestFeedsClient extends RestClient implements Feeds {
             var res = target.path(user)
                     .queryParam(FeedsService.SECRET, secret)
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .delete();
 
             return super.toJavaResult(res, Void.class);
@@ -144,10 +163,37 @@ public class RestFeedsClient extends RestClient implements Feeds {
                     .path(user)
                     .queryParam(FeedsService.SECRET, secret)
                     .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .delete();
 
             return super.toJavaResult(res, Void.class);
         });
     }
 
+
+    @Override
+    public Result<Void> update(String secret, Update update) {
+        return super.reTry( () -> {
+            var res = target.path(ReplicatedFeedsService.UPDATE)
+                    .queryParam(FeedsService.SECRET, secret)
+                    .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
+                    .post(Entity.entity(update, MediaType.APPLICATION_JSON));
+
+            return super.toJavaResult(res, Void.class);
+        });
+    }
+
+    @Override
+    public Result<List<Update>> getUpdates(String secret) {
+        return super.reTry( () -> {
+            var res = target.path(ReplicatedFeedsService.UPDATE)
+                    .queryParam(FeedsService.SECRET, secret)
+                    .request()
+                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
+                    .get();
+
+            return super.toJavaResult(res, new GenericType<List<Update>>(){});
+        });
+    }
 }
