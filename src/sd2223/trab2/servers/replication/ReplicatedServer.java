@@ -38,16 +38,15 @@ public class ReplicatedServer {
         }
     }
 
-    public static void runServer(URI serverURI,  String serviceID, boolean is_primary, Feeds service) {
+    public static void runServer(URI serverURI,  String serviceID, Feeds service) {
         try{
-
-            var resource =  new ReplicatedResource(service, serviceID, serverURI, is_primary);
+            var resource =  new ReplicatedResource(service, serviceID, serverURI);
             ResourceConfig config = new ResourceConfig();
             config.register( resource );
             config.register(new VersionFilter( resource ));
 
             JdkHttpServerFactory.createHttpServer(serverURI, config, SSLContext.getDefault());
-            Log.info(String.format("%s Replicated serverRest ready @ %s\n", is_primary ? "primary" : "secondary", serverURI));
+            Log.info(String.format("Feeds Replicated Rest server ready @ %s\n", serverURI));
         }catch (Exception e){
             e.printStackTrace();
         }
