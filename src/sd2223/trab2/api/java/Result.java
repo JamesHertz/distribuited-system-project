@@ -21,7 +21,7 @@ public interface Result<T> {
 	 * NOT_FOUND - an access occurred to something that does not exist
 	 * INTERNAL_ERROR - something unexpected happened
 	 */
-	enum ErrorCode{ OK, CONFLICT, NOT_FOUND, BAD_REQUEST, FORBIDDEN, INTERNAL_ERROR, REDIRECTED, NOT_IMPLEMENTED, TIMEOUT, NO_CONTENT};
+	enum ErrorCode{ OK, CONFLICT, NOT_FOUND, BAD_REQUEST, FORBIDDEN, INTERNAL_ERROR, REDIRECTED, NOT_IMPLEMENTED, TIMEOUT, NO_CONTENT, SERVICE_UNAVAILABLE};
 
 	
 	/**

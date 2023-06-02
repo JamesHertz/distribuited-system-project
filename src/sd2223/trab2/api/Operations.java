@@ -5,7 +5,14 @@ public enum Operations {
     UNSUBSCRIBE_USER, SUBSCRIBE_SERVER, UNSUBSCRIBE_SERVER,
     CREATE_FEED, CREATE_EXT_FEED, REMOVE_FED, REMOVE_EXT_FEED;
 
+    private static final Operations[] ops = values();
+
     int operationID(){
         return this.ordinal();
     }
+
+    public static Operations valueOf(int opID){
+       return opID < 0 || opID >= ops.length ? null : ops[opID];
+    }
+
 }

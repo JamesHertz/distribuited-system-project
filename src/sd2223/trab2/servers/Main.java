@@ -35,22 +35,16 @@ public class Main {
                 .type(Long.class)
                 .nargs("?")
                 .help("base number for feeds server IDs");
-        parser.addArgument("-s", "--service")
-                .choices("feeds", "users", "proxy") // TODO: constants later
+        parser.addArgument("-s","--service")
+                .choices("proxy", "rest_feeds", "rest_users", "soap_feeds", "soap_users", "replication")
                 .required(true)
-                .help("define the service type");
-        parser.addArgument("--primary") // define a boolean flag :)
-                .action(storeTrue())
-                .help("if there the node is primary or not");
-        parser.addArgument("-p" ,"--protocol") // define a boolean flag :)
-                .choices("soap", "rest") // TODO: do constants later :)
-                .required(true)
-                .help("choose the protocol used");
+                .help("the type of the server");
         parser.addArgument("-S", "--secret")
                 .metavar("secret")
                 .required(true)
                 .help("the secret share by the servers");
 
+        // server_type = { proxy, rest_feeds, rest_users, soap_feeds, soap_users, replication }
         Namespace ns = null;
         try {
             ns = parser.parseArgs(args);
@@ -60,9 +54,10 @@ public class Main {
         }
 
         var domain = ns.getString("domain");
-        var protocol = ns.getString("protocol");
+        var service = ns.getString("protocol");
         Secret.setSecret( ns.getString("secret") );
 
+        /*
         var stype = Service.ServiceType.USERS;
         Service service = switch (ns.getString("service")){
             case USERS_SERVICE -> new JavaUsers(domain);
@@ -77,7 +72,6 @@ public class Main {
                 yield new JavaFeeds(domain, baseNumber);
             }
             case "proxy" -> {
-               protocol = "rest";
                stype = Service.ServiceType.FEEDS;
                yield new Mastodon(domain);
             }
@@ -98,5 +92,6 @@ public class Main {
 
         Discovery ds = Discovery.getInstance();
         ds.announce(serverID, serverURI.toString());
+         */
     }
 }

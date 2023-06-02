@@ -29,6 +29,7 @@ public class RestResource {
 			case TIMEOUT -> Status.REQUEST_TIMEOUT;
 			case NOT_IMPLEMENTED -> Status.NOT_IMPLEMENTED;
 			case  NO_CONTENT -> Status.NO_CONTENT;
+			case SERVICE_UNAVAILABLE -> Status.SERVICE_UNAVAILABLE;
 			//case INTERNAL_ERROR:
 			//	return Status.INTERNAL_SERVER_ERROR;
 			case OK -> result.value() == null ? Status.NO_CONTENT : Status.OK;
