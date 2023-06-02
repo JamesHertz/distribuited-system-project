@@ -1,15 +1,19 @@
 package sd2223.trab2.servers.replication.resource;
 
+import io.netty.util.Timeout;
 import sd2223.trab2.api.Message;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.rest.FeedsService;
+import sd2223.trab2.clients.ClientFactory;
+import sd2223.trab2.servers.rest.resources.RestResource;
 
 import static  sd2223.trab2.servers.replication.ReplicatedServer.VersionProvider;
 
 import java.net.URI;
 import java.util.List;
+import java.util.function.Function;
 
-public class ReplicatedResource implements FeedsService, VersionProvider {
+public class ReplicatedResource  extends RestResource implements FeedsService, VersionProvider{
     private final Feeds impl;
     private final ZookeeperClient zk;
     private long version = 0L;
@@ -23,8 +27,31 @@ public class ReplicatedResource implements FeedsService, VersionProvider {
 
     @Override
     public long postMessage(Long version, String user, String pwd, Message msg) {
-        var res = impl.postMessage(user, pwd, msg);
-        return 0;
+        boolean atLeastOne = false;
+        if(zk.getState() == ZookeeperClient.State.PRIMARY){
+            //Primeiro, executar nos outros, e quanto pelo menos 1 responder, eu retorno o resultado
+
+            var servers = zk.getServers();
+
+            for (var server : servers) {
+                var client = ClientFactory.getFeedsClient(server.severURI());
+                var res = client.postMessage(user, pwd, msg); //Outro server tenta fazer...
+
+                if(res.isOK()){ //Se pelo menos 1 conseguir
+                    atLeastOne = true; //Agora sabemos que vamos responder
+                }
+            }
+            if(atLeastOne) { //Se pelo menos 1 secundario responder, entao temos seguranca que pelo menos 1 replica got our back
+                var res = impl.postMessage(user, pwd, msg);
+                return super.fromJavaResult(res); //Entao respondemos
+            }else{
+                return 0; //Erro...
+            }
+        }else{
+            //Forward to primary
+
+            return 0;
+        }
     }
 
     @Override
@@ -34,6 +61,7 @@ public class ReplicatedResource implements FeedsService, VersionProvider {
 
     @Override
     public Message getMessage(Long version, String user, long mid) {
+        //Verificar versao...
         return null;
     }
 
