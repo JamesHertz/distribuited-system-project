@@ -1,6 +1,10 @@
 package sd2223.trab2.servers.rest.resources;
 
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import sd2223.trab2.api.Update;
 import sd2223.trab2.api.java.Feeds;
+import sd2223.trab2.api.replication.ReplicatedFeedsService;
 import sd2223.trab2.api.rest.FeedsService;
 import sd2223.trab2.api.Message;
 

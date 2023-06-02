@@ -2,7 +2,7 @@
 set -e
 
 IMAGE=sd2223-trab2-60198-61177
-NETWORK=sd-proj1
+NETWORK=sdnet
 PORT=8080
 HOST=
 PASSWORD=

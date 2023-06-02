@@ -14,17 +14,18 @@ import java.util.function.Consumer;
 
 
 public class ZookeeperClient implements Watcher{
-	private static final String SERVERS = "zookeeper";
-	private static final int TIMEOUT = 5000;
-	private static final Logger Log= LoggerFactory.getLogger(ZookeeperClient.class);
-
 	static {
 		// zookeeper logs off :)
-		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ZooKeeper", "error");
-		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxn", "error");
-		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.common.X509Util", "error");
-		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxnSocket", "error");
+		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ZooKeeper", "off");
+		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxn", "off");
+		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.common.X509Util", "off");
+		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxnSocket", "off");
 	}
+
+	private static final String SERVERS = "zookeeper";
+	private static final int TIMEOUT = 5000;
+	private static final Logger Log = LoggerFactory.getLogger(ZookeeperClient.class);
+
 
 	private final String rootNode;
 	private final byte[] serverURI;
@@ -37,7 +38,7 @@ public class ZookeeperClient implements Watcher{
 	private boolean networkErrors;
 
 	public ZookeeperClient(String rootNode, String serverURI, Consumer<ZookeeperClient> callback) {
-		this.rootNode      = rootNode;
+		this.rootNode      = "/" + rootNode;
 		this.serverURI     = serverURI.getBytes(Charset.defaultCharset());
 		this.callback      = callback;
 		this.cache         = new ArrayList<>();
@@ -108,7 +109,6 @@ public class ZookeeperClient implements Watcher{
 			e.printStackTrace();
 		}
 	}
-
 
 	private void connect() throws IOException, InterruptedException {
 		var connectedSignal = new CountDownLatch(1);
@@ -189,8 +189,6 @@ public class ZookeeperClient implements Watcher{
 
 		}
 	}
-
-
 
 	public enum State{
 		PRIMARY, OTHER, DISCONNECTED;

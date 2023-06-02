@@ -20,7 +20,7 @@ public class RestServer {
             ResourceConfig config = new ResourceConfig();
             switch (stype) {
                 case USERS -> config.register(new RestUsersResource((Users) service));
-                case FEEDS -> config.register(new RestFeedsResource((Feeds) service));
+                case FEEDS, PROXY -> config.register(new RestFeedsResource((Feeds) service));
             }
 
             JdkHttpServerFactory.createHttpServer(serverURI, config, SSLContext.getDefault());

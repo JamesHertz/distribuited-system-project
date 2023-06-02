@@ -31,7 +31,10 @@ public class SoapServer {
 
 			Object implementor = switch (stype) {
 				case USERS ->  new SoapUsersWebService((Users) service);
-				case FEEDS ->  new SoapFeedsWebService((Feeds) service);
+				case FEEDS->  new SoapFeedsWebService((Feeds) service);
+				case PROXY ->  {
+					throw new RuntimeException("NOT IMPLEMENTED");
+				}
 			};
 			var server = HttpsServer.create(new InetSocketAddress(serverURI.getHost(), serverURI.getPort()), 0);
 			server.setExecutor(Executors.newCachedThreadPool());

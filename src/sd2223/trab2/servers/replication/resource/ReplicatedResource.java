@@ -3,6 +3,8 @@ package sd2223.trab2.servers.replication.resource;
 import jakarta.ws.rs.WebApplicationException;
 import static jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sd2223.trab2.api.Message;
 import static  sd2223.trab2.api.Operations.*;
 
@@ -11,7 +13,9 @@ import sd2223.trab2.api.Update;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
 import sd2223.trab2.api.replication.ReplicatedFeedsService;
+import sd2223.trab2.api.rest.FeedsService;
 import sd2223.trab2.clients.ClientFactory;
+import sd2223.trab2.servers.replication.ReplicatedServer;
 import sd2223.trab2.servers.rest.resources.RestResource;
 import sd2223.trab2.utils.JSON;
 import sd2223.trab2.utils.Secret;
@@ -29,12 +33,15 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     private final ZookeeperClient zk;
     private long version = 0L;
 
+    private static final Logger Log = LoggerFactory.getLogger(ReplicatedServer.class);
+
     // simplificar -> version <= current
     public ReplicatedResource(Feeds impl, String serviceID, URI serverURI) throws  Exception{
         this.impl = impl;
         this.zk = new ZookeeperClient(serviceID, serverURI.toString(), w -> {
             System.out.println("doing something fun :)");
         });
+        Log.info("Server running...");
     }
 
     private  <T> T fromJavaResult(Supplier<Result<T>> supplier) {
@@ -53,6 +60,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     @Override
     public long postMessage(Long version, String user, String pwd, Message msg) {
+        Log.info("postMessage: version={} ; user={} ; pwd={}; msg={}", version, user, pwd, msg);
         return this.fromJavaResult( () -> {
             Update up = Update.toUpdate(
                     CREATE_MESSAGE, user, pwd, JSON.encode(msg)
@@ -163,7 +171,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
             switch (operation){
                 case CREATE_MESSAGE -> impl.postMessage(args[0], args[1], JSON.decode(args[2], Message.class));
                 default -> {
-                    System.out.println("whatever");
+                    Log.info("Whatever");
                 }
             }
         }else {
@@ -173,6 +181,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     @Override
     public List<Update> getOperations(Long version, String secret) {
+        Log.info("getOperations: {} {}", version, secret);
         return null;
     }
 
