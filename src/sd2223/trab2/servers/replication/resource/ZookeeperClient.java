@@ -1,43 +1,89 @@
 package sd2223.trab2.servers.replication.resource;
 
 import org.apache.zookeeper.*;
+
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
 
 
-public class ZookeeperClient implements Watcher {
+public class ZookeeperClient {
+	private static final String SERVERS = "zookeeper";
+	private static final int TIMEOUT = 5000;
 
-	static final String SERVERS = "zookeeper";
+	// ...
+	private final String rootNode;
+	private final byte[] serverURI;
+	private final List<RepServerInfo> cache;
+	private final Consumer<ZookeeperClient> callback;
+
+	// ...
 	private ZooKeeper _client;
-	private final int TIMEOUT = 5000;
-	private String rootAppID;
+	private RepServerInfo primaryNode;
+	private long serverID;
 
-	public ZookeeperClient(String rootNode) throws Exception {
-		this.connect(SERVERS, TIMEOUT);
+	public ZookeeperClient(String rootNode, String serverURI, Consumer<ZookeeperClient> callback) {
+		this.rootNode = rootNode;
+		this.serverURI = serverURI.getBytes(Charset.defaultCharset());
+		this.callback = callback;
+		this.cache = new ArrayList<>();
+	}
+
+	public void startNode(){
+		try{ // TODO: background thread
+			this.connect();
+			this.createRootNode();
+			this.createServerNode();
+			this.update();
+		}catch (Exception e){
+			e.printStackTrace();
+		}
+
+		//
 	}
 
 	public synchronized ZooKeeper client() {
-		if (_client == null || !_client.getState().equals(ZooKeeper.States.CONNECTED)) {
+		if (this.isDisconnected()) {
 			throw new IllegalStateException("ZooKeeper is not connected.");
 		}
 		return _client;
 	}
 
-	private void connect(String host, int timeout) throws IOException, InterruptedException {
+	public State getState(){
+		if(this.isDisconnected()) return State.DISCONNECTED;
+		if(primaryNode != null && primaryNode.serverID == this.serverID) return State.PRIMARY;
+		return State.OTHER;
+	}
+
+	public RepServerInfo getPrimaryNode(){
+		return this.primaryNode;
+	}
+
+	public Long getNodeId(){
+		return this.serverID;
+	}
+
+	public List<RepServerInfo> getServers(){
+		return cache;
+	}
+
+	public record RepServerInfo(Long serverID, URI severURI) { };
+
+	private void connect() throws IOException, InterruptedException {
 		var connectedSignal = new CountDownLatch(1);
-		_client = new ZooKeeper(host, TIMEOUT, (e) -> {
-			if (e.getState().equals(Event.KeeperState.SyncConnected)) {
+		_client = new ZooKeeper(SERVERS, TIMEOUT, (e) -> {
+			if (e.getState().equals(Watcher.Event.KeeperState.SyncConnected)) {
 				connectedSignal.countDown();
 			}
 		});
 		connectedSignal.await();
 	}
 
-	public String createNode(String path, byte[] data, CreateMode mode) {
+	private String createNode(String path, byte[] data, CreateMode mode) {
 		try {
 			return client().create(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, mode);
 		} catch (KeeperException.NodeExistsException x) {
@@ -48,103 +94,49 @@ public class ZookeeperClient implements Watcher {
 		}
 	}
 
-	public List<String> getChildren(String path) {
+	private void createServerNode(){
+		var res = this.createNode(this.rootNode + "/", serverURI, CreateMode.EPHEMERAL_SEQUENTIAL);
+		// TODO: think about this
+		serverID = Long.parseLong( res.split("/")[2] );
+	}
+	private void createRootNode(){
+		this.createNode(this.rootNode, new byte[0], CreateMode.PERSISTENT);
+	}
+
+	private void update(){
 		try {
-			return client().getChildren(path, false);
-		} catch (Exception x) {
-			x.printStackTrace();
-		}
-		return Collections.emptyList();
-	}
+			System.out.println("updating...");
+			var prevState = this.getState();
+			long min = Long.MAX_VALUE;
+			cache.clear(); // think about this :)
 
-	public List<String> getChildren(String path, Watcher watcher) {
-		try {
-			return client().getChildren(path, watcher);
-		} catch (Exception x) {
-			x.printStackTrace();
-		}
-		return Collections.emptyList();
-	}
+			for (var server : client().getChildren(this.rootNode, w -> this.update() )) {
+				var data = client().getData(this.rootNode + "/" + server, false, null);
+				var node =  new RepServerInfo( Long.parseLong(server), URI.create( new String( data ) ));
 
-	public void createRootNode(){
-		this.createNode(this.rootAppID, new byte[0], CreateMode.PERSISTENT);
-	}
-
-		/*
-
-	ZookeeperNode {
-		Zookeeper( .... ){};
-		RepServerInfo getPrimary();
-		Long getNodeId()
-		List<RepServerInfo> getServers();
-		State getCurrentState(); -> DISCONNECTED | PRIMARY | OTHER
-	}
-
-	RepResource {
-		boolean isPrimary = false;
-
-		 ....
-		 if(is_primary) {
-		 	if(!zk.isConnected()) {
-		 		// error
-		 	}
-		 } else {
-		 	var primary = zk.getPrimary();
-			 if(primary.serverID() == zk.getNodeId()) {
-			 	// I just become the primary :)
-			 } else {
-			 	 forward(primary.serverURI());
-			 }
-
-		 }
-
-	}
-
-	record RepServerInfo(Long serverID, URI severURI){};
-
-
-
-	public String getPrimaryID(){
-		long min    = Long.MAX_VALUE;
-		var min_str = "";
-		for(var node : this.getChildren(APP_ROOT) ){
-			var aux = Long.parseLong( node );
-			if( aux < min ){
-				min = aux;
-				min_str = node;
+				cache.add(node);
+				if(node.serverID < min){
+					primaryNode = node;
+					min = node.serverID;
+				}
 			}
-		}
-		return min_str;
-	}
-		 */
 
-	@Override
-	public void process(WatchedEvent event) {
-		switch (event.getType()){
-			case NodeCreated -> System.out.println("new node: "+ event.getPath());
-			case NodeDeleted -> System.out.println("node died:" + event.getPath());
-			default -> {
-				System.out.println("something happened: " + event);
+			if(prevState == State.OTHER
+					&& this.getState() == State.PRIMARY){ // become a primary
+				callback.accept(this);
 			}
-		}
-	}
 
-	public List<RepServerInfo> getServers(){
-		try {
-			List<RepServerInfo> res = new ArrayList<>();
-			for (var server : client().getChildren(this.rootAppID, false)) {
-				var data = client().getData(this.rootAppID + "/" + server, false, null);
-				res.add( new RepServerInfo(
-								Long.parseLong(server), URI.create( new String( data ) )
-						)
-				);
-			}
-			return res;
 		} catch (KeeperException | InterruptedException e) {
 			e.printStackTrace();
 		}
-		return null;
+
 	}
 
-	public record RepServerInfo(Long serverID, URI severURI){};
+	private boolean isDisconnected(){
+		return _client == null || !_client.getState().equals(ZooKeeper.States.CONNECTED);
+	}
+
+	public enum State{
+		PRIMARY, OTHER, DISCONNECTED;
+	}
 }

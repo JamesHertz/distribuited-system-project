@@ -18,6 +18,7 @@ public class ReplicatedResource implements FeedsService, VersionProvider {
         -> track de que n'os nos somoso
      */
 
+    // incrementar a versao
     public ReplicatedResource(Feeds impl, String serviceID, URI serverURI, boolean is_primary) throws  Exception{
         this.impl = impl;
         this.zk = new ZookeeperClient(serviceID);
@@ -26,6 +27,7 @@ public class ReplicatedResource implements FeedsService, VersionProvider {
 
     @Override
     public long postMessage(Long version, String user, String pwd, Message msg) {
+        var res = impl.postMessage(user, pwd, msg);
         return 0;
     }
 
