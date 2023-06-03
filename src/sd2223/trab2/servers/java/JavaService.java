@@ -1,6 +1,8 @@
 package sd2223.trab2.servers.java;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
 import sd2223.trab2.clients.ClientFactory;
@@ -12,11 +14,9 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
-import java.util.logging.Logger;
 
 public class JavaService {
-
-    private static final Logger Log = Logger.getLogger(JavaService.class.getName());
+    private static Logger Log = LoggerFactory.getLogger(JavaUsers.class.getName());
 
     private final Map<String, RequestConsumer> consumers;
 
@@ -38,6 +38,7 @@ public class JavaService {
      * @param <T> whatever the request returns
      */
     public <T> void addRequest(String domain, Request<T> request, boolean forceBackground) {
+        Log.debug("New request: domain = {}", domain);
         RequestConsumer aux;
         synchronized (consumers) {
             aux = consumers.computeIfAbsent(domain, k -> {
@@ -101,11 +102,13 @@ public class JavaService {
                          || !( probablyWaiting && newRequests.isEmpty()
                          && this.executeRequest(request) ) //Tries to execute, if it fails with timeout, means that there was some connection error, so add to queue to try again later
                  ) {
-                     Log.info("addRequest: +1 request");
                      newRequests.add(request);
+                     Log.debug("Request added to newRequest list");
                      if (probablyWaiting)
                          newRequests.notifyAll();
-                 }
+                 } else
+                    Log.debug("Request performed in foreground and succeeded!");
+
             }
 
         }
@@ -124,7 +127,7 @@ public class JavaService {
         private boolean executeRequest(Request<?> req) {
             synchronized (remoteServer) {
                 var res = req.execute(remoteServer);
-                // Log.info("executeRequest: +1 execution.");
+                Log.debug("+1 execution (res={})", res);
                 return res.isOK() || res.error() != Result.ErrorCode.TIMEOUT; // was not processed by the remote server
             }
         }
@@ -149,7 +152,7 @@ public class JavaService {
 
                 synchronized (requestQueue) {
                     requestQueue.remove();
-                    Log.info("loop: send +1 message  - remaining=" + requestQueue.size());
+                    Log.debug("loop: send +1 message  - remaining=" + requestQueue.size());
                 }
             }
         }
