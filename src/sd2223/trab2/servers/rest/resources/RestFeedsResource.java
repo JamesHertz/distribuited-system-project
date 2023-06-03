@@ -1,10 +1,6 @@
 package sd2223.trab2.servers.rest.resources;
 
-import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.Response;
-import sd2223.trab2.api.Update;
 import sd2223.trab2.api.java.Feeds;
-import sd2223.trab2.api.replication.ReplicatedFeedsService;
 import sd2223.trab2.api.rest.FeedsService;
 import sd2223.trab2.api.Message;
 
@@ -18,12 +14,12 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public long postMessage(Long version, String user, String pwd, Message msg) {
+    public long postMessage(String user, String pwd, Message msg) {
         return super.fromJavaResult( impl.postMessage(user, pwd, msg) );
     }
 
     @Override
-    public void removeFromPersonalFeed(Long version, String user, long mid, String pwd) {
+    public void removeFromPersonalFeed(String user, long mid, String pwd) {
         super.fromJavaResult( impl.removeFromPersonalFeed(user, mid, pwd) );
     }
 
@@ -39,17 +35,17 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public void createFeed(Long version, String user, String secret) {
+    public void createFeed(String user, String secret) {
         super.fromJavaResult( impl.createFeed(user, secret) );
     }
 
     @Override
-    public void subUser(Long version, String user, String userSub, String pwd) {
+    public void subUser(String user, String userSub, String pwd) {
         super.fromJavaResult( impl.subscribeUser(user, userSub, pwd ) );
     }
 
     @Override
-    public void unsubscribeUser(Long version, String user, String userSub, String pwd) {
+    public void unsubscribeUser(String user, String userSub, String pwd) {
         super.fromJavaResult( impl.unSubscribeUser(user, userSub, pwd) );
     }
 
@@ -59,32 +55,32 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public List<Message> subscribeServer(Long version, String domain, String user, String secret) {
+    public List<Message> subscribeServer(String domain, String user, String secret) {
         return super.fromJavaResult( impl.subscribeServer(domain, user, secret) );
     }
 
     @Override
-    public void createExtFeedMessage(Long version, String user, String secret, Message msg) {
+    public void createExtFeedMessage(String user, String secret, Message msg) {
         super.fromJavaResult( impl.createExtFeedMessage(user, secret, msg) );
     }
 
     @Override
-    public void removeExtFeedMessage(Long version, String user, long mid, String secret) {
+    public void removeExtFeedMessage(String user, long mid, String secret) {
         super.fromJavaResult( impl.removeExtFeedMessage(user, mid, secret) );
     }
 
     @Override
-    public void removeFeed(Long version, String user, String secret) {
+    public void removeFeed(String user, String secret) {
         super.fromJavaResult( impl.removeFeed(user, secret) );
     }
 
     @Override
-    public void removeExtFeed(Long version, String user, String secret) {
+    public void removeExtFeed(String user, String secret) {
         super.fromJavaResult( impl.removeExtFeed(user, secret) );
     }
 
     @Override
-    public void unsubscribeServer(Long version, String domain, String user, String secret) {
+    public void unsubscribeServer(String domain, String user, String secret) {
         super.fromJavaResult( impl.unsubscribeServer(domain, user, secret) );
     }
 

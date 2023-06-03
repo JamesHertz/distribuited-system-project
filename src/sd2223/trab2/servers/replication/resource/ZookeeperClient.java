@@ -22,7 +22,7 @@ public class ZookeeperClient implements Watcher{
 		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxnSocket", "off");
 	}
 
-	private static final String SERVERS = "zookeeper";
+	private static final String SERVERS = "kafka"; //"zookeeper";
 	private static final int TIMEOUT = 5000;
 	private static final Logger Log = LoggerFactory.getLogger(ZookeeperClient.class);
 

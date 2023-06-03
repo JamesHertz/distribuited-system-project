@@ -52,7 +52,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
 
     @Override
-    public long postMessage(Long version, String user, String pwd, Message msg) {
+    public long postMessage(String user, String pwd, Message msg) {
         Log.info("postMessage: version={} ; user={} ; pwd={}; msg={}", version, user, pwd, msg);
 
         // TODO: verify values here
@@ -70,7 +70,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void removeFromPersonalFeed(Long version, String user, long mid, String pwd) {
+    public void removeFromPersonalFeed(String user, long mid, String pwd) {
         Log.info("removeFromPersonalFeed: version: {} ; user: {} ; mid: {} ; pwd: {}", version, user, mid, pwd);
         this.executeWriteOperation(
                 () -> impl.removeFromPersonalFeed(user, mid, pwd),
@@ -82,6 +82,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     @Override
     public Message getMessage(Long version, String user, long mid) {
+        // @Context  HttpHeaders headers (use this c:)
         return this.executeReadOperation(version, () -> impl.getMessage(user, mid));
     }
 
@@ -91,7 +92,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void subUser(Long version, String user, String userSub, String pwd) {
+    public void subUser(String user, String userSub, String pwd) {
         this.executeWriteOperation(
                 () -> impl.subscribeUser(user, userSub, pwd),
                 Update.toUpdate(
@@ -101,7 +102,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void unsubscribeUser(Long version, String user, String userSub, String pwd) {
+    public void unsubscribeUser(String user, String userSub, String pwd) {
         this.executeWriteOperation(
                 () -> impl.unSubscribeUser(user, userSub, pwd),
                 Update.toUpdate(
@@ -116,7 +117,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void createFeed(Long version, String user, String secret) {
+    public void createFeed(String user, String secret) {
         this.executeWriteOperation(
                 () -> impl.createFeed(user, secret),
                 Update.toUpdate(
@@ -126,7 +127,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void removeFeed(Long version, String user, String secret) {
+    public void removeFeed(String user, String secret) {
         this.executeWriteOperation(
                 () -> impl.removeFeed(user, secret),
                 Update.toUpdate(
@@ -136,7 +137,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public List<Message> subscribeServer(Long version, String domain, String user, String secret) {
+    public List<Message> subscribeServer(String domain, String user, String secret) {
         return this.executeWriteOperation(
                 () -> impl.subscribeServer(domain, user, secret),
                 Update.toUpdate(
@@ -146,7 +147,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void unsubscribeServer(Long version, String domain, String user, String secret) {
+    public void unsubscribeServer(String domain, String user, String secret) {
         this.executeWriteOperation(
                 () -> impl.unsubscribeServer(domain, user, secret),
                 Update.toUpdate(
@@ -156,7 +157,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void createExtFeedMessage(Long version, String user, String secret, Message msg) {
+    public void createExtFeedMessage(String user, String secret, Message msg) {
         this.executeWriteOperation(
                 () -> impl.createExtFeedMessage(user, secret, msg),
                 Update.toUpdate(
@@ -166,7 +167,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void removeExtFeedMessage(Long version, String user, long mid, String secret) {
+    public void removeExtFeedMessage(String user, long mid, String secret) {
         this.executeWriteOperation(
                 () -> impl.removeExtFeedMessage(user, mid, secret),
                 Update.toUpdate(
@@ -176,7 +177,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void removeExtFeed(Long version, String user, String secret) {
+    public void removeExtFeed(String user, String secret) {
         this.executeWriteOperation(
                 () -> impl.removeExtFeed(user, secret),
                 Update.toUpdate(
