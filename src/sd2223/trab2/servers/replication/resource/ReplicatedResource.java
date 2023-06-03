@@ -3,6 +3,8 @@ package sd2223.trab2.servers.replication.resource;
 import jakarta.ws.rs.WebApplicationException;
 import static jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
+import org.glassfish.jersey.server.ContainerRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sd2223.trab2.api.Message;
@@ -52,7 +54,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
 
     @Override
-    public long postMessage(String user, String pwd, Message msg) {
+    public long postMessage(ContainerRequest request, String user, String pwd, Message msg) {
         Log.info("postMessage: version={} ; user={} ; pwd={}; msg={}", version, user, pwd, msg);
 
         // TODO: verify values here
@@ -65,18 +67,20 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
                 () -> impl.postMessage(user, pwd, msg),
                 Update.toUpdate(
                         CREATE_MESSAGE, user, pwd, JSON.encode(msg)
-                )
+                ),
+                request
         );
     }
 
     @Override
-    public void removeFromPersonalFeed(String user, long mid, String pwd) {
+    public void removeFromPersonalFeed(ContainerRequest request, String user, long mid, String pwd) {
         Log.info("removeFromPersonalFeed: version: {} ; user: {} ; mid: {} ; pwd: {}", version, user, mid, pwd);
         this.executeWriteOperation(
                 () -> impl.removeFromPersonalFeed(user, mid, pwd),
                 Update.toUpdate(
                     REMOVE_FROM_FEED, user, mid, pwd
-                )
+                ),
+                request
         );
     }
 
@@ -92,22 +96,24 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void subUser(String user, String userSub, String pwd) {
+    public void subUser(ContainerRequest request, String user, String userSub, String pwd) {
         this.executeWriteOperation(
                 () -> impl.subscribeUser(user, userSub, pwd),
                 Update.toUpdate(
                         SUBSCRIBE_USER, user, userSub, pwd
-                )
+                ),
+                request
         );
     }
 
     @Override
-    public void unsubscribeUser(String user, String userSub, String pwd) {
+    public void unsubscribeUser(ContainerRequest request, String user, String userSub, String pwd) {
         this.executeWriteOperation(
                 () -> impl.unSubscribeUser(user, userSub, pwd),
                 Update.toUpdate(
                         UNSUBSCRIBE_USER, user, userSub, pwd
-                )
+                ),
+                request
         );
     }
 
@@ -117,73 +123,80 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void createFeed(String user, String secret) {
+    public void createFeed(ContainerRequest request, String user, String secret) {
         Log.info("creatFeed: user={} ; secret={}", user, secret);
         this.executeWriteOperation(
                 () -> impl.createFeed(user, secret),
                 Update.toUpdate(
                         CREATE_FEED, user, secret
-                )
+                ),
+                request
         );
     }
 
     @Override
-    public void removeFeed(String user, String secret) {
+    public void removeFeed(ContainerRequest request, String user, String secret) {
         this.executeWriteOperation(
                 () -> impl.removeFeed(user, secret),
                 Update.toUpdate(
                         REMOVE_FEED,user, secret
-                )
+                ),
+                request
         );
     }
 
     @Override
-    public List<Message> subscribeServer(String domain, String user, String secret) {
+    public List<Message> subscribeServer(ContainerRequest request, String domain, String user, String secret) {
         return this.executeWriteOperation(
                 () -> impl.subscribeServer(domain, user, secret),
                 Update.toUpdate(
                         SUBSCRIBE_SERVER, domain, user, secret
-                )
+                ),
+                request
         );
     }
 
     @Override
-    public void unsubscribeServer(String domain, String user, String secret) {
+    public void unsubscribeServer(ContainerRequest request, String domain, String user, String secret) {
         this.executeWriteOperation(
                 () -> impl.unsubscribeServer(domain, user, secret),
                 Update.toUpdate(
                         UNSUBSCRIBE_SERVER, domain, user, secret
-                )
+                ),
+                request
         );
     }
 
     @Override
-    public void createExtFeedMessage(String user, String secret, Message msg) {
+    public void createExtFeedMessage(ContainerRequest request, String user, String secret, Message msg) {
         this.executeWriteOperation(
                 () -> impl.createExtFeedMessage(user, secret, msg),
                 Update.toUpdate(
                         CREATE_EXT_FEED_MSG, user, secret, JSON.encode(msg)
-                )
+                ),
+                request
         );
     }
 
     @Override
-    public void removeExtFeedMessage(String user, long mid, String secret) {
+    public void removeExtFeedMessage(ContainerRequest request, String user, long mid, String secret) {
         this.executeWriteOperation(
                 () -> impl.removeExtFeedMessage(user, mid, secret),
                 Update.toUpdate(
                         REMOVE_EXT_FEED_MSG, user, mid, secret
-                )
+                ),
+                request
         );
     }
 
     @Override
-    public void removeExtFeed(String user, String secret) {
+    public void removeExtFeed(ContainerRequest request, String user, String secret) {
         this.executeWriteOperation(
                 () -> impl.removeExtFeed(user, secret),
                 Update.toUpdate(
                         REMOVE_EXT_FEED, user, secret
-                )
+                ),
+                request
         );
     }
 
@@ -219,7 +232,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
         return this.version.get();
     }
 
-    private  <T> T executeWriteOperation(Supplier<Result<T>> operation, Update update) {
+    private  <T> T executeWriteOperation(Supplier<Result<T>> operation, Update update, ContainerRequest request) {
         return switch (this.zk.getState()){
             case PRIMARY -> {
                 Log.info("I am the primary and going to try to execute it!!");
@@ -238,14 +251,24 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
                 // remove the last operation :)
                 yield super.fromJavaResult( res );
             }
-            case OTHER -> throw new WebApplicationException(
-                    Response.temporaryRedirect(
-                            this.zk.getPrimaryNode().severURI()
-                    ).build()
-            );
-            case DISCONNECTED -> throw new WebApplicationException(
-                    Status.SERVICE_UNAVAILABLE
-            );
+            case OTHER -> {
+                Log.info("Redirecting to primary...");
+                var originalURI = request.getUriInfo().getRequestUri();
+                var primaryURI = this.zk.getPrimaryNode().severURI();
+                throw new WebApplicationException(
+                        Response.temporaryRedirect(
+                                UriBuilder.fromUri(originalURI)
+                                        .host(primaryURI.getHost())
+                                        .build()
+                        ).build()
+                );
+            }
+            case DISCONNECTED -> {
+                Log.info("Server disconnected...");
+                throw new WebApplicationException(
+                        Status.SERVICE_UNAVAILABLE
+                );
+            }
         };
     }
 

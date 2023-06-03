@@ -1,7 +1,9 @@
 package sd2223.trab2.api.rest;
 
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import org.glassfish.jersey.server.ContainerRequest;
 import sd2223.trab2.api.Message;
 
 import java.util.List;
@@ -27,9 +29,10 @@ public interface FeedsService {
 	 * A user must contact the server of her domain directly (i.e., this operation should not be
 	 * propagated to other domain)
 	 *
-	 * @param user user of the operation (format user@domain)
-	 * @param pwd  password of the user sending the message
-	 * @param msg  the message object to be posted to the server
+	 * @param request
+	 * @param user    user of the operation (format user@domain)
+	 * @param pwd     password of the user sending the message
+	 * @param msg     the message object to be posted to the server
 	 * @return 200 the unique numerical identifier for the posted message;
 	 * 404 if the publisher does not exist in the current domain
 	 * 403 if the pwd is not correct
@@ -39,23 +42,24 @@ public interface FeedsService {
 	@Path("/{" + USER + "}")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	long postMessage(@PathParam(USER) String user, @QueryParam(PWD) String pwd, Message msg);
+	long postMessage(@Context ContainerRequest request, @PathParam(USER) String user, @QueryParam(PWD) String pwd, Message msg);
 
 	/**
 	 * Removes the message identified by mid from the feed of user.
 	 * A user must contact the server of her domain directly (i.e., this operation should not be
 	 * propagated to other domain)
 	 *
-	 * @param user user feed being accessed (format user@domain)
-	 * @param mid  the identifier of the message to be deleted
-	 * @param pwd  password of the user
+	 * @param request
+	 * @param user    user feed being accessed (format user@domain)
+	 * @param mid     the identifier of the message to be deleted
+	 * @param pwd     password of the user
 	 * @return 204 if ok
 	 * 403 if the pwd is not correct
 	 * 404 is generated if the message does not exist in the server or if the user does not exist
 	 */
 	@DELETE
 	@Path("/{" + USER + "}/{" + MID + "}")
-	void removeFromPersonalFeed(@PathParam(USER) String user, @PathParam(MID) long mid, @QueryParam(PWD) String pwd);
+	void removeFromPersonalFeed(@Context ContainerRequest request, @PathParam(USER) String user, @PathParam(MID) long mid, @QueryParam(PWD) String pwd);
 
 	/**
 	 * Obtains the message with id from the feed of user (may be a remote user)
@@ -91,6 +95,7 @@ public interface FeedsService {
 	 * A user must contact the server of her domain directly (i.e., this operation should not be
 	 * propagated to other domain)
 	 *
+	 * @param request
 	 * @param user    the user subscribing (following) other user (format user@domain)
 	 * @param userSub the user to be subscribed (followed) (format user@domain)
 	 * @param pwd     password of the user
@@ -100,13 +105,14 @@ public interface FeedsService {
 	 */
 	@POST
 	@Path("/sub/{" + USER + "}/{" + USERSUB + "}")
-	void subUser(@PathParam(USER) String user, @PathParam(USERSUB) String userSub, @QueryParam(PWD) String pwd);
+	void subUser(@Context ContainerRequest request, @PathParam(USER) String user, @PathParam(USERSUB) String userSub, @QueryParam(PWD) String pwd);
 
 	/**
 	 * UnSubscribe a user
 	 * A user must contact the server of her domain directly (i.e., this operation should not be
 	 * propagated to other domain)
 	 *
+	 * @param request
 	 * @param user    the user unsubscribing (following) other user (format user@domain)
 	 * @param userSub the identifier of the user to be unsubscribed
 	 * @param pwd     password of the user
@@ -116,7 +122,7 @@ public interface FeedsService {
 	 */
 	@DELETE
 	@Path("/sub/{" + USER + "}/{" + USERSUB + "}")
-	void unsubscribeUser(@PathParam(USER) String user, @PathParam(USERSUB) String userSub, @QueryParam(PWD) String pwd);
+	void unsubscribeUser(@Context ContainerRequest request, @PathParam(USER) String user, @PathParam(USERSUB) String userSub, @QueryParam(PWD) String pwd);
 
 	/**
 	 * Subscribed users.
@@ -137,16 +143,18 @@ public interface FeedsService {
 	 * Creates a feed for a user in the feeds server.
 	 * The user domain should be the same as the feeds.
 	 *
-	 * @param user the user address of the user to be created (user@domain)
+	 * @param request
+	 * @param user    the user address of the user to be created (user@domain)
 	 */
 	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	void createFeed(String user , @QueryParam(SECRET) String secret);
+	@Consumes(MediaType.APPLICATION_JSON) // @Context ContainerRequest request
+	void createFeed(@Context ContainerRequest request, String user , @QueryParam(SECRET) String secret);
 
 	/**
 	 * Deletes the feeds of the user that belongs to this domain (we've named it LocalUser)
 	 *
-	 * @param user the user address  (user@domain)
+	 * @param request
+	 * @param user    the user address  (user@domain)
 	 * @returns 200 if ok,
 	 * 404 if the user doesn't exist,
 	 * 400 if the user address is invalid or if the domain,
@@ -154,15 +162,16 @@ public interface FeedsService {
 	 */
 	@DELETE
 	@Path("/{" + USER + "}")
-	void removeFeed(@PathParam(USER) String user, @QueryParam(SECRET) String secret);
+	void removeFeed(@Context ContainerRequest request, @PathParam(USER) String user, @QueryParam(SECRET) String secret);
 
 	/**
 	 * Subscribe an outsider feeds server to a user of the receiving feeds.
 	 * This means this server will be notified whenever a message is posted
 	 * in this user feeds.
 	 *
-	 * @param domain the domain of the server
-	 * @param user   user to subscribe
+	 * @param request
+	 * @param domain  the domain of the server
+	 * @param user    user to subscribe
 	 * @returns 200 a list with all the messages of the user so far,
 	 * 404 if the user doesn't exist,
 	 * 400 if the user address is invalid o if it's domain is the same as this servers.
@@ -170,25 +179,27 @@ public interface FeedsService {
 	@POST
 	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
 	@Produces(MediaType.APPLICATION_JSON)
-	List<Message> subscribeServer(@PathParam(DOMAIN) String domain, @PathParam(USER) String user, @QueryParam(SECRET) String secret);
+	List<Message> subscribeServer(@Context ContainerRequest request, @PathParam(DOMAIN) String domain, @PathParam(USER) String user, @QueryParam(SECRET) String secret);
 
 	/**
 	 * Unsubscribe a server from a user.  (This means this server will stop receiving the
 	 * messages that this user posts)
 	 *
-	 * @param domain domain of the feeds server
-	 * @param user   user address (user@domain)
+	 * @param request
+	 * @param domain  domain of the feeds server
+	 * @param user    user address (user@domain)
 	 */
 	@DELETE
 	@Path("/" + SERVERSUB + "/{" + DOMAIN + "}/{" + USER + "}")
-	void unsubscribeServer(@PathParam(DOMAIN) String domain, @PathParam(USER) String user, @QueryParam(SECRET) String secret);
+	void unsubscribeServer(@Context ContainerRequest request, @PathParam(DOMAIN) String domain, @PathParam(USER) String user, @QueryParam(SECRET) String secret);
 
 	/**
 	 * Creates a message on the external user feed ( cache of the feed of a user that
 	 * doesn't belong to this domain)
 	 *
-	 * @param user user address (user@domain)
-	 * @param msg  message id
+	 * @param request
+	 * @param user    user address (user@domain)
+	 * @param msg     message id
 	 * @returns 200 if ok
 	 * 404 if the user does exist
 	 * 400 if the user address is invalid or if the domain in it is the same as
@@ -197,14 +208,15 @@ public interface FeedsService {
 	@POST
 	@Path(EXTERNAL + "/{" + USER +"}")
 	@Consumes(MediaType.APPLICATION_JSON)
-	void createExtFeedMessage(@PathParam(USER) String user, @QueryParam(SECRET) String secret, Message msg);
+	void createExtFeedMessage(@Context ContainerRequest request, @PathParam(USER) String user, @QueryParam(SECRET) String secret, Message msg);
 
 	/**
 	 * Removes a message from the external user feed (cache of the feed of a user that
 	 * doesn't long to the domain of this feed server)
 	 *
-	 * @param user user address (user@domain)
-	 * @param mid  message id
+	 * @param request
+	 * @param user    user address (user@domain)
+	 * @param mid     message id
 	 * @returns 200 if ok,
 	 * 404 if the user or the message doesn't,
 	 * 400 if user address is invalid of if the domain belongs
@@ -212,7 +224,7 @@ public interface FeedsService {
 	 */
 	@DELETE
 	@Path(EXTERNAL + "/{" + USER +"}/{" + MID + "}")
-	void removeExtFeedMessage(@PathParam(USER) String user, @PathParam(MID) long mid, @QueryParam(SECRET) String secret);
+	void removeExtFeedMessage(@Context ContainerRequest request, @PathParam(USER) String user, @PathParam(MID) long mid, @QueryParam(SECRET) String secret);
 
 
 	/**
@@ -220,13 +232,14 @@ public interface FeedsService {
 	 * belong to this domain) and removes it from the subscription list of all the users
 	 * of this domain that are subscribed at it.
 	 *
-	 * @param user user address (user@domain)
+	 * @param request
+	 * @param user    user address (user@domain)
 	 * @returns 200 if ok
 	 * 404 if the user doesn't exist
 	 * 400 if the user address is invalid or if the domain of the address is the same as this.
 	 */
 	@DELETE
 	@Path(EXTERNAL + "/{" + USER + "}")
-	void removeExtFeed(@PathParam(USER) String user, @QueryParam(SECRET) String secret);
+	void removeExtFeed(@Context ContainerRequest request, @PathParam(USER) String user, @QueryParam(SECRET) String secret);
 
 }

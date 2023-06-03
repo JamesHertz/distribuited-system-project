@@ -1,5 +1,6 @@
 package sd2223.trab2.servers.rest.resources;
 
+import org.glassfish.jersey.server.ContainerRequest;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.rest.FeedsService;
 import sd2223.trab2.api.Message;
@@ -14,12 +15,12 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public long postMessage(String user, String pwd, Message msg) {
+    public long postMessage(ContainerRequest request, String user, String pwd, Message msg) {
         return super.fromJavaResult( impl.postMessage(user, pwd, msg) );
     }
 
     @Override
-    public void removeFromPersonalFeed(String user, long mid, String pwd) {
+    public void removeFromPersonalFeed(ContainerRequest request, String user, long mid, String pwd) {
         super.fromJavaResult( impl.removeFromPersonalFeed(user, mid, pwd) );
     }
 
@@ -35,17 +36,17 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public void createFeed(String user, String secret) {
+    public void createFeed(ContainerRequest request, String user, String secret) {
         super.fromJavaResult( impl.createFeed(user, secret) );
     }
 
     @Override
-    public void subUser(String user, String userSub, String pwd) {
+    public void subUser(ContainerRequest request, String user, String userSub, String pwd) {
         super.fromJavaResult( impl.subscribeUser(user, userSub, pwd ) );
     }
 
     @Override
-    public void unsubscribeUser(String user, String userSub, String pwd) {
+    public void unsubscribeUser(ContainerRequest request, String user, String userSub, String pwd) {
         super.fromJavaResult( impl.unSubscribeUser(user, userSub, pwd) );
     }
 
@@ -55,32 +56,32 @@ public class RestFeedsResource extends RestResource implements FeedsService {
     }
 
     @Override
-    public List<Message> subscribeServer(String domain, String user, String secret) {
+    public List<Message> subscribeServer(ContainerRequest request, String domain, String user, String secret) {
         return super.fromJavaResult( impl.subscribeServer(domain, user, secret) );
     }
 
     @Override
-    public void createExtFeedMessage(String user, String secret, Message msg) {
+    public void createExtFeedMessage(ContainerRequest request, String user, String secret, Message msg) {
         super.fromJavaResult( impl.createExtFeedMessage(user, secret, msg) );
     }
 
     @Override
-    public void removeExtFeedMessage(String user, long mid, String secret) {
+    public void removeExtFeedMessage(ContainerRequest request, String user, long mid, String secret) {
         super.fromJavaResult( impl.removeExtFeedMessage(user, mid, secret) );
     }
 
     @Override
-    public void removeFeed(String user, String secret) {
+    public void removeFeed(ContainerRequest request, String user, String secret) {
         super.fromJavaResult( impl.removeFeed(user, secret) );
     }
 
     @Override
-    public void removeExtFeed(String user, String secret) {
+    public void removeExtFeed(ContainerRequest request, String user, String secret) {
         super.fromJavaResult( impl.removeExtFeed(user, secret) );
     }
 
     @Override
-    public void unsubscribeServer(String domain, String user, String secret) {
+    public void unsubscribeServer(ContainerRequest request, String domain, String user, String secret) {
         super.fromJavaResult( impl.unsubscribeServer(domain, user, secret) );
     }
 
