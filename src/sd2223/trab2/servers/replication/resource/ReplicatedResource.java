@@ -20,18 +20,24 @@ import sd2223.trab2.utils.JSON;
 import sd2223.trab2.utils.Secret;
 
 import static  sd2223.trab2.servers.replication.ReplicatedServer.VersionProvider;
+import static  sd2223.trab2.api.java.Result.ErrorCode;
 
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 public class ReplicatedResource  extends RestResource implements ReplicatedFeedsService, VersionProvider{
+    private static final int FAILURE_TOLERANCE      =  1;
+    private static final int REPLICAS_NUMBER        = 2 * FAILURE_TOLERANCE + 1;
+    private static final int REQUIRED_CONFIRMATIONS = REPLICAS_NUMBER / 2;
+
     private final Feeds impl;
     private final ZookeeperClient zk;
-    private AtomicLong version;
+    private final AtomicLong version;
 
     private static final Logger Log = LoggerFactory.getLogger(ReplicatedServer.class);
 
@@ -45,52 +51,33 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
         Log.info("Server running...");
     }
 
-    private  <T> T fromJavaResult(Supplier<Result<T>> supplier) {
-        return switch (this.zk.getState()){
-            case PRIMARY -> {
-                var res = supplier.get();
-                if(res.isOK()) version.incrementAndGet();
-                yield super.fromJavaResult( res );
-            }
-            case OTHER -> throw new WebApplicationException(
-                    Response.temporaryRedirect(
-                            this.zk.getPrimaryNode().severURI()
-                    ).build()
-            );
-            case DISCONNECTED -> throw new WebApplicationException(
-                    Status.SERVICE_UNAVAILABLE
-            );
-        };
-    }
 
     @Override
     public long postMessage(Long version, String user, String pwd, Message msg) {
         Log.info("postMessage: version={} ; user={} ; pwd={}; msg={}", version, user, pwd, msg);
-        return this.fromJavaResult( () -> {
-            Update up = Update.toUpdate(
-                    CREATE_MESSAGE, user, pwd, JSON.encode(msg)
-            );
-
-            // TODO: store operation in a list of operations
-            return this.canExecute(up) ?  impl.postMessage(user, pwd, msg)
-                    :  Result.error( Result.ErrorCode.SERVICE_UNAVAILABLE );
-        });
+        Update up = Update.toUpdate(
+                CREATE_MESSAGE, user, pwd, JSON.encode(msg)
+        );
+        return this.executeWriteOperation( () -> impl.postMessage(user, pwd, msg), up);
     }
 
     @Override
     public void removeFromPersonalFeed(Long version, String user, long mid, String pwd) {
-
+        Log.info("removeFromPersonalFeed: version: {} ; user: {} ; mid: {} ; pwd: {}", version, user, mid, pwd);
+        Update up = Update.toUpdate(
+                REMOVE_FROM_FEED, user, mid, pwd
+        );
+        this.executeWriteOperation( () -> impl.removeFromPersonalFeed(user, mid, pwd), up);
     }
 
     @Override
     public Message getMessage(Long version, String user, long mid) {
-        //Verificar versao...
-        return null;
+        return this.executeReadOperation(version, () -> impl.getMessage(user, mid));
     }
 
     @Override
     public List<Message> getMessages(Long version, String user, long time) {
-        return null;
+        return this.executeReadOperation(version, () -> impl.getMessages(user, time));
     }
 
     @Override
@@ -105,7 +92,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     @Override
     public List<String> listSubs(Long version, String user) {
-        return null;
+        return this.executeReadOperation(version, () -> impl.listSubs(user));
     }
 
     @Override
@@ -175,29 +162,66 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
 
     @Override
-    public synchronized long getCurrentVersion() {
+    public long getCurrentVersion() {
         return this.version.get();
     }
 
+    private  <T> T executeWriteOperation(Supplier<Result<T>> operation, Update update) {
+        return switch (this.zk.getState()){
+            case PRIMARY -> {
+                Result<T> res;
+                if(this.canExecute(update)){
+                    res = operation.get(); // executes operation
+                    if(res.isOK()){
+                        version.incrementAndGet();
+                        // save update
+                    }
+                } else
+                    res = Result.error( ErrorCode.SERVICE_UNAVAILABLE );
+                // remove the last operation :)
+                yield super.fromJavaResult( res );
+            }
+            case OTHER -> throw new WebApplicationException(
+                    Response.temporaryRedirect(
+                            this.zk.getPrimaryNode().severURI()
+                    ).build()
+            );
+            case DISCONNECTED -> throw new WebApplicationException(
+                    Status.SERVICE_UNAVAILABLE
+            );
+        };
+    }
+
+    private <T> T executeReadOperation(Long version, Supplier<Result<T>> supplier){
+        return super.fromJavaResult(
+                version == null || version <= this.version.get() ?
+                        supplier.get() : Result.error( ErrorCode.SERVICE_UNAVAILABLE )
+        );
+    }
+
     private boolean canExecute(Update update){
-        var errors = new ConcurrentLinkedDeque<Result<?>>();
-        CountDownLatch cd = new CountDownLatch(1); // todo: look at this later
-        for(var server : this.zk.getServers()){
+        var errors = new ConcurrentLinkedDeque<Result<Integer>>();
+        var servers = this.zk.getServers();
+        var request_nr = servers.size() - 1;
+        Semaphore sem = new Semaphore(0);
+
+        for(var server : servers){
             if(server.serverID() == this.zk.getServerID()) continue;
             new Thread( () -> {
                 var client = ClientFactory.getReplicatedClient(server.severURI(), this);
                 errors.add(
                         client.update(Secret.getSecret(), update)
                 );
-                cd.countDown();
+                sem.release(); // inc
             }).start();
         }
-        try{
-            cd.await();
-        }catch (InterruptedException ignore){ }
-
-        for(var err : errors){
-            if(err.isOK()) return true;
+        int conf = 0;
+        while(request_nr > 0){
+            try{ sem.acquire(); }catch (InterruptedException ignore){ } // wait
+            var err = errors.remove();
+            if( err.isOK() ) conf++; // they were able to execute the operation
+            if(conf == REQUIRED_CONFIRMATIONS) return true;
+            request_nr--;
         }
         return false;
     }
@@ -207,6 +231,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
         if (update == null || (operation = Operations.valueOf(update.getOperation())) == null)
             throw new WebApplicationException(Status.BAD_REQUEST);
 
+        // we are assuming that from here below everything will be alright which may not be the case
         var args = update.getArgs();
         return switch (operation) {
             case CREATE_MESSAGE   -> impl.postMessage(args[0], args[1], JSON.decode(args[2], Message.class));
@@ -221,4 +246,5 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
             case CREATE_EXT_FEED_MSG -> impl.createExtFeedMessage(args[0], args[1], JSON.decode(args[2], Message.class));
         };
     }
+
 }
