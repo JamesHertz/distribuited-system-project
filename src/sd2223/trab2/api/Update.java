@@ -1,5 +1,7 @@
 package sd2223.trab2.api;
 
+import java.util.Arrays;
+
 public class Update {
     private int operation;
     private String[] args;
@@ -34,5 +36,8 @@ public class Update {
             upArgs[i] = args[i].toString();
         }
         return new Update(op.operationID(), upArgs);
+    }
+    public String toString(){
+        return String.format("%s -> %s", Operations.valueOf(operation), Arrays.toString(args));
     }
 }

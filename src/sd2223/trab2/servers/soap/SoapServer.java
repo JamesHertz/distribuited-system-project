@@ -35,6 +35,7 @@ public class SoapServer {
 				case PROXY ->  {
 					throw new RuntimeException("NOT IMPLEMENTED");
 				}
+				case REPLICATION ->  throw new RuntimeException("Bad service type");
 			};
 			var server = HttpsServer.create(new InetSocketAddress(serverURI.getHost(), serverURI.getPort()), 0);
 			server.setExecutor(Executors.newCachedThreadPool());

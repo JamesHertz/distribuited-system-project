@@ -21,6 +21,7 @@ public class RestServer {
             switch (stype) {
                 case USERS -> config.register(new RestUsersResource((Users) service));
                 case FEEDS, PROXY -> config.register(new RestFeedsResource((Feeds) service));
+                case REPLICATION ->  throw new RuntimeException("Bad service type");
             }
 
             JdkHttpServerFactory.createHttpServer(serverURI, config, SSLContext.getDefault());

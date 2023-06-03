@@ -4,12 +4,15 @@ import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import sd2223.trab2.api.java.Feeds;
+import sd2223.trab2.api.java.RepFeeds;
 import sd2223.trab2.api.java.Service;
-import static sd2223.trab2.api.java.Service.ServiceType.USERS;
-import static sd2223.trab2.api.java.Service.Protocol.SOAP;
+
+import static sd2223.trab2.api.java.Service.Protocol;
+import static sd2223.trab2.api.java.Service.ServiceType;
 import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.servers.java.JavaFeeds;
 import sd2223.trab2.servers.java.JavaUsers;
+import sd2223.trab2.servers.java.JavaRepFeeds;
 import sd2223.trab2.servers.proxy.Mastodon;
 import sd2223.trab2.servers.replication.ReplicatedServer;
 import sd2223.trab2.servers.rest.RestServer;
@@ -22,7 +25,6 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 
-import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 import static sd2223.trab2.utils.Formatter.*;
 
 
@@ -67,42 +69,46 @@ public class Main {
         Secret.setSecret( ns.getString("secret") );
 
         var serverProtocol = switch (service){
-            case "rest_feeds", "rest_users", "proxy" -> Service.Protocol.REST;
-            case "soap_feeds", "soap_users" -> Service.Protocol.SOAP;
-            default -> Service.Protocol.REPLICATION;
+            case "rest_feeds", "rest_users", "proxy" -> Protocol.REST;
+            case "soap_feeds", "soap_users" -> Protocol.SOAP;
+            default -> Protocol.REPLICATION;
         };
 
         var serviceType= switch (service){
-            case "rest_feeds", "soap_feeds", "replication" -> Service.ServiceType.FEEDS;
-            case "rest_users", "soap_users" -> Service.ServiceType.USERS;
-            default -> Service.ServiceType.PROXY;
+            case "rest_feeds", "soap_feeds" -> ServiceType.FEEDS;
+            case "rest_users", "soap_users" -> ServiceType.USERS;
+            case "replication" -> ServiceType.REPLICATION;
+            default -> ServiceType.PROXY;
         };
 
         Service svc = switch (serviceType){
             case USERS -> new JavaUsers(domain);
             case PROXY -> new Mastodon(domain);
-            case FEEDS -> {
-                var baseNumber = ns.getLong("base_number");
-                if(baseNumber == null ){
-                    System.err.println("Error: Missing base_number");
-                    parser.printUsage();
-                    System.exit(1);
-                }
-                yield new JavaFeeds(domain, baseNumber);
-            }
+            case FEEDS -> new JavaFeeds(domain, getBaseNumber(ns));
+            case REPLICATION -> new JavaRepFeeds(domain, getBaseNumber(ns));
         };
 
         String serverName = InetAddress.getLocalHost().getHostName();
-        String serverID   = Formatter.getServiceID(domain, serviceType == USERS ? USERS_SERVICE : FEEDS_SERVICE);
-        URI serverURI     = serverProtocol == SOAP ? getSoapURI(serverName) : getRestURI(serverName);
+        String serverID   = Formatter.getServiceID(domain, serviceType == ServiceType.USERS? USERS_SERVICE : FEEDS_SERVICE);
+        URI serverURI     = serverProtocol == Protocol.SOAP? getSoapURI(serverName) : getRestURI(serverName);
 
         switch (serverProtocol){
             case REST -> RestServer.runServer(serverURI, serviceType, svc);
             case SOAP -> SoapServer.runServer(serverURI, serviceType, svc);
-            case REPLICATION -> ReplicatedServer.runServer(serverURI, serverID, (Feeds) svc);
+            case REPLICATION -> ReplicatedServer.runServer(serverURI, serverID, (RepFeeds) svc);
         }
 
         Discovery ds = Discovery.getInstance();
         ds.announce(serverID, serverURI.toString());
+    }
+
+    private static long getBaseNumber(Namespace ns){
+        var baseNumber = ns.getLong("base_number");
+        if(baseNumber == null ){
+            System.err.println("Error: Missing base_number.");
+            System.err.println("use fla --help to display the usage.");
+            System.exit(1);
+        }
+        return baseNumber;
     }
 }

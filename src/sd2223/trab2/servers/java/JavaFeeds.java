@@ -25,7 +25,7 @@ public class JavaFeeds extends JavaService implements Feeds {
     private static final Logger Log = Logger.getLogger(JavaFeeds.class.getName());
 
     private final String domain;
-    private final IDGenerator generator;
+    protected final IDGenerator generator;
     private final Map<String, FeedUser> allUserInfo;
     private final String secret;
     private Users myUsersServer;
@@ -66,12 +66,12 @@ public class JavaFeeds extends JavaService implements Feeds {
         var userInfo = err.value();
         synchronized (userInfo){
             var messages = userInfo.getUserMessages();
-            long mid = generator.nextID();
-            msg.setId(mid);
-            msg.setDomain(domain);
-            msg.setCreationTime(System.currentTimeMillis());
-            messages.put(mid, msg);
 
+            msg.setDomain(domain);
+            this.setupMessage(msg); // set's message current time and ID :)
+            var mid = msg.getId();
+
+            messages.put(mid, msg);
             userInfo.getServerSubscribers()
                     .forEach( domain -> {
                          super.addRequest(
@@ -712,6 +712,13 @@ public class JavaFeeds extends JavaService implements Feeds {
         public Set<String> getUsersSubscribers(){
             return usersSubscribers;
         }
+    }
+
+    // set message ID and creation time
+    protected void setupMessage(Message msg){
+        long mid = generator.nextID();
+        msg.setId(mid);
+        msg.setCreationTime(System.currentTimeMillis());
     }
 
     // the feed of a Local user which is a user

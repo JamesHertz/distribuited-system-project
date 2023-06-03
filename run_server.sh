@@ -51,7 +51,7 @@ if  ! [ -f "tls/keystore/$HOST.jks" ] ; then
 fi
 
 echo "running: "
-docker run --rm -it --network "$NETWORK" $EXPOSED  -h "$HOST" "$IMAGE" \
+docker run --rm -it --cap-add=NET_ADMIN --network "$NETWORK" $EXPOSED  -h "$HOST" "$IMAGE" \
   java -Djavax.net.ssl.keyStore="keystore/$HOST.jks" \
       -Djavax.net.ssl.keyStorePassword=$PASSWORD     \
       -Djavax.net.ssl.trustStore=keystore/users-keystore.jks \

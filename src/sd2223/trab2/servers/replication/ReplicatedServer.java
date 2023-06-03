@@ -7,6 +7,7 @@ import jakarta.ws.rs.ext.Provider;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import sd2223.trab2.api.java.Feeds;
+import sd2223.trab2.api.java.RepFeeds;
 import sd2223.trab2.api.rest.FeedsService;
 import sd2223.trab2.servers.replication.resource.ReplicatedResource;
 
@@ -38,7 +39,7 @@ public class ReplicatedServer {
         }
     }
 
-    public static void runServer(URI serverURI,  String serviceID, Feeds service) {
+    public static void runServer(URI serverURI,  String serviceID, RepFeeds service) {
         try{
             var resource =  new ReplicatedResource(service, serviceID, serverURI);
             ResourceConfig config = new ResourceConfig();

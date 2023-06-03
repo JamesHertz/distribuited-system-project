@@ -10,7 +10,7 @@ import static  sd2223.trab2.api.Operations.*;
 
 import sd2223.trab2.api.Operations;
 import sd2223.trab2.api.Update;
-import sd2223.trab2.api.java.Feeds;
+import sd2223.trab2.api.java.RepFeeds;
 import sd2223.trab2.api.java.Result;
 import sd2223.trab2.api.replication.ReplicatedFeedsService;
 import sd2223.trab2.clients.ClientFactory;
@@ -25,7 +25,6 @@ import static  sd2223.trab2.api.java.Result.ErrorCode;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -35,14 +34,14 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     private static final int REPLICAS_NUMBER        = 2 * FAILURE_TOLERANCE + 1;
     private static final int REQUIRED_CONFIRMATIONS = REPLICAS_NUMBER / 2;
 
-    private final Feeds impl;
+    private final RepFeeds impl;
     private final ZookeeperClient zk;
     private final AtomicLong version;
 
     private static final Logger Log = LoggerFactory.getLogger(ReplicatedServer.class);
 
     // simplificar -> version <= current
-    public ReplicatedResource(Feeds impl, String serviceID, URI serverURI) throws  Exception{
+    public ReplicatedResource(RepFeeds impl, String serviceID, URI serverURI) throws  Exception{
         this.impl    = impl;
         this.version = new AtomicLong(0);
         this.zk = new ZookeeperClient(serviceID, serverURI.toString(), w -> {
@@ -55,19 +54,30 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     @Override
     public long postMessage(Long version, String user, String pwd, Message msg) {
         Log.info("postMessage: version={} ; user={} ; pwd={}; msg={}", version, user, pwd, msg);
-        Update up = Update.toUpdate(
-                CREATE_MESSAGE, user, pwd, JSON.encode(msg)
+
+        // TODO: verify values here
+        if(msg != null){
+            msg.setCreationTime(System.currentTimeMillis());
+            msg.setId(impl.getGenerator().nextID());
+        }
+
+        return this.executeWriteOperation(
+                () -> impl.postMessage(user, pwd, msg),
+                Update.toUpdate(
+                        CREATE_MESSAGE, user, pwd, JSON.encode(msg)
+                )
         );
-        return this.executeWriteOperation( () -> impl.postMessage(user, pwd, msg), up);
     }
 
     @Override
     public void removeFromPersonalFeed(Long version, String user, long mid, String pwd) {
         Log.info("removeFromPersonalFeed: version: {} ; user: {} ; mid: {} ; pwd: {}", version, user, mid, pwd);
-        Update up = Update.toUpdate(
-                REMOVE_FROM_FEED, user, mid, pwd
+        this.executeWriteOperation(
+                () -> impl.removeFromPersonalFeed(user, mid, pwd),
+                Update.toUpdate(
+                    REMOVE_FROM_FEED, user, mid, pwd
+                )
         );
-        this.executeWriteOperation( () -> impl.removeFromPersonalFeed(user, mid, pwd), up);
     }
 
     @Override
@@ -82,12 +92,22 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     @Override
     public void subUser(Long version, String user, String userSub, String pwd) {
-
+        this.executeWriteOperation(
+                () -> impl.subscribeUser(user, userSub, pwd),
+                Update.toUpdate(
+                        SUBSCRIBE_USER, user, userSub, pwd
+                )
+        );
     }
 
     @Override
     public void unsubscribeUser(Long version, String user, String userSub, String pwd) {
-
+        this.executeWriteOperation(
+                () -> impl.unSubscribeUser(user, userSub, pwd),
+                Update.toUpdate(
+                        UNSUBSCRIBE_USER, user, userSub, pwd
+                )
+        );
     }
 
     @Override
@@ -97,37 +117,72 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     @Override
     public void createFeed(Long version, String user, String secret) {
-
+        this.executeWriteOperation(
+                () -> impl.createFeed(user, secret),
+                Update.toUpdate(
+                        CREATE_FEED, user, secret
+                )
+        );
     }
 
     @Override
     public void removeFeed(Long version, String user, String secret) {
-
+        this.executeWriteOperation(
+                () -> impl.removeFeed(user, secret),
+                Update.toUpdate(
+                        REMOVE_FEED,user, secret
+                )
+        );
     }
 
     @Override
     public List<Message> subscribeServer(Long version, String domain, String user, String secret) {
-        return null;
+        return this.executeWriteOperation(
+                () -> impl.subscribeServer(domain, user, secret),
+                Update.toUpdate(
+                        SUBSCRIBE_SERVER, domain, user, secret
+                )
+        );
     }
 
     @Override
     public void unsubscribeServer(Long version, String domain, String user, String secret) {
-
+        this.executeWriteOperation(
+                () -> impl.unsubscribeServer(domain, user, secret),
+                Update.toUpdate(
+                        UNSUBSCRIBE_SERVER, domain, user, secret
+                )
+        );
     }
 
     @Override
     public void createExtFeedMessage(Long version, String user, String secret, Message msg) {
-
+        this.executeWriteOperation(
+                () -> impl.createExtFeedMessage(user, secret, msg),
+                Update.toUpdate(
+                        CREATE_EXT_FEED_MSG, user, secret, JSON.encode(msg)
+                )
+        );
     }
 
     @Override
     public void removeExtFeedMessage(Long version, String user, long mid, String secret) {
-
+        this.executeWriteOperation(
+                () -> impl.removeExtFeedMessage(user, mid, secret),
+                Update.toUpdate(
+                        REMOVE_EXT_FEED_MSG, user, mid, secret
+                )
+        );
     }
 
     @Override
     public void removeExtFeed(Long version, String user, String secret) {
-
+        this.executeWriteOperation(
+                () -> impl.removeExtFeed(user, secret),
+                Update.toUpdate(
+                        REMOVE_EXT_FEED, user, secret
+                )
+        );
     }
 
     @Override
@@ -148,7 +203,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
             Log.info("Operation status: {}", status);
             return status.getStatusCode();
-        }else {
+        } else {
             // TODO: handle this :)
             throw new WebApplicationException( Status.SERVICE_UNAVAILABLE );
         }
@@ -244,6 +299,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
             case UNSUBSCRIBE_SERVER -> impl.unsubscribeServer(args[0], args[1], args[2]);
             case REMOVE_EXT_FEED  -> impl.removeExtFeed(args[0], args[1]);
             case CREATE_EXT_FEED_MSG -> impl.createExtFeedMessage(args[0], args[1], JSON.decode(args[2], Message.class));
+            case REMOVE_EXT_FEED_MSG -> impl.removeExtFeedMessage(args[0], Long.parseLong(args[1]), args[2]);
         };
     }
 

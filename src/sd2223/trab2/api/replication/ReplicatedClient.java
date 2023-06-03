@@ -1,5 +1,6 @@
 package sd2223.trab2.api.replication;
 
+import sd2223.trab2.api.Message;
 import sd2223.trab2.api.Update;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
