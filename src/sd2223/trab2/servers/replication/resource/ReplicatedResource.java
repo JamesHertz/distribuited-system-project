@@ -31,6 +31,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
+// next: 108a
 public class ReplicatedResource  extends RestResource implements ReplicatedFeedsService, VersionProvider{
     private static final int FAILURE_TOLERANCE      =  1;
     private static final int REPLICAS_NUMBER        = 2 * FAILURE_TOLERANCE + 1;
