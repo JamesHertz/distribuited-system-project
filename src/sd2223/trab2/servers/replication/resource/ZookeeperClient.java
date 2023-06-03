@@ -20,6 +20,9 @@ public class ZookeeperClient implements Watcher{
 		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxn", "off");
 		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.common.X509Util", "off");
 		System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxnSocket", "off");
+		// configuration for slf4j
+		System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
+		System.setProperty("org.slf4j.simpleLogger.dateTimeFormat", "yyyy-MM-dd HH:mm:ss:SSS Z");
 	}
 
 	private static final String SERVERS = "kafka"; //"zookeeper";

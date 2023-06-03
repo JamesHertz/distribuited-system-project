@@ -10,12 +10,12 @@ import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.utils.Formatter;
 
 import java.net.URI;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 
 public class JavaService {
+    static {
+        System.setProperty("org.slf4j.simpleLogger.log." + JavaUsers.class.getName(), "debug");
+    }
     private static Logger Log = LoggerFactory.getLogger(JavaUsers.class.getName());
 
     private final Map<String, RequestConsumer> consumers;
@@ -52,6 +52,7 @@ public class JavaService {
     protected Feeds getFeedServer(String serverDomain) {
         var ds = Discovery.getInstance();
         URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
+        Log.debug("discovery for: {} (res={})", serverDomain, Arrays.toString(serverURI));
         if (serverURI.length == 0) return null;
         return ClientFactory.getFeedsClient(serverURI[0]);
     }
@@ -127,7 +128,7 @@ public class JavaService {
         private boolean executeRequest(Request<?> req) {
             synchronized (remoteServer) {
                 var res = req.execute(remoteServer);
-                Log.debug("+1 execution (res={})", res);
+                Log.info("+1 execution (res={})", res);
                 return res.isOK() || res.error() != Result.ErrorCode.TIMEOUT; // was not processed by the remote server
             }
         }

@@ -118,6 +118,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     @Override
     public void createFeed(String user, String secret) {
+        Log.info("creatFeed: user={} ; secret={}", user, secret);
         this.executeWriteOperation(
                 () -> impl.createFeed(user, secret),
                 Update.toUpdate(
@@ -221,15 +222,19 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     private  <T> T executeWriteOperation(Supplier<Result<T>> operation, Update update) {
         return switch (this.zk.getState()){
             case PRIMARY -> {
+                Log.info("I am the primary and going to try to execute it!!");
                 Result<T> res;
                 if(this.canExecute(update)){
+                    Log.info("Executing request...");
                     res = operation.get(); // executes operation
                     if(this.success(res)){
                         version.incrementAndGet();
                         // save update
                     }
-                } else
+                } else{
                     res = Result.error( ErrorCode.SERVICE_UNAVAILABLE );
+                    Log.info("Cannot execute request...");
+                }
                 // remove the last operation :)
                 yield super.fromJavaResult( res );
             }
@@ -252,9 +257,12 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     private boolean canExecute(Update update){
-        var errors = new ConcurrentLinkedDeque<Result<Integer>>();
         var servers = this.zk.getServers();
         var request_nr = servers.size() - 1;
+
+        if(request_nr < REQUIRED_CONFIRMATIONS) return false; // DO not execute when it's below this :)
+
+        var errors = new ConcurrentLinkedDeque<Result<Integer>>();
         Semaphore sem = new Semaphore(0);
 
         for(var server : servers){
@@ -286,15 +294,15 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
         // we are assuming that from here below everything will be alright which may not be the case
         var args = update.getArgs();
         return switch (operation) {
-            case CREATE_MESSAGE   -> impl.postMessage(args[0], args[1], JSON.decode(args[2], Message.class));
-            case REMOVE_FROM_FEED -> impl.removeFromPersonalFeed(args[0], Long.parseLong(args[1]), args[2]);
-            case CREATE_FEED -> impl.createFeed(args[0], args[1]);
-            case REMOVE_FEED -> impl.removeFeed(args[0], args[1]);
-            case SUBSCRIBE_USER   -> impl.subscribeUser(args[0], args[1], args[2]);
-            case UNSUBSCRIBE_USER -> impl.unSubscribeUser(args[0], args[1], args[2]);
-            case SUBSCRIBE_SERVER -> impl.subscribeServer(args[0], args[1], args[2]);
-            case UNSUBSCRIBE_SERVER -> impl.unsubscribeServer(args[0], args[1], args[2]);
-            case REMOVE_EXT_FEED  -> impl.removeExtFeed(args[0], args[1]);
+            case CREATE_MESSAGE      -> impl.postMessage(args[0], args[1], JSON.decode(args[2], Message.class));
+            case REMOVE_FROM_FEED    -> impl.removeFromPersonalFeed(args[0], Long.parseLong(args[1]), args[2]);
+            case CREATE_FEED         -> impl.createFeed(args[0], args[1]);
+            case REMOVE_FEED         -> impl.removeFeed(args[0], args[1]);
+            case SUBSCRIBE_USER      -> impl.subscribeUser(args[0], args[1], args[2]);
+            case UNSUBSCRIBE_USER    -> impl.unSubscribeUser(args[0], args[1], args[2]);
+            case SUBSCRIBE_SERVER    -> impl.subscribeServer(args[0], args[1], args[2]);
+            case UNSUBSCRIBE_SERVER  -> impl.unsubscribeServer(args[0], args[1], args[2]);
+            case REMOVE_EXT_FEED     -> impl.removeExtFeed(args[0], args[1]);
             case CREATE_EXT_FEED_MSG -> impl.createExtFeedMessage(args[0], args[1], JSON.decode(args[2], Message.class));
             case REMOVE_EXT_FEED_MSG -> impl.removeExtFeedMessage(args[0], Long.parseLong(args[1]), args[2]);
         };

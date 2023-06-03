@@ -176,6 +176,7 @@ class ErrorResult<T> implements Result<T> {
 			case 404 -> ErrorCode.NOT_FOUND;
 			case 400 -> ErrorCode.BAD_REQUEST;
 			case 501 -> ErrorCode.NOT_IMPLEMENTED;
+			case 503 -> ErrorCode.SERVICE_UNAVAILABLE;
 			default -> ErrorCode.INTERNAL_ERROR;
 		};
 	}
