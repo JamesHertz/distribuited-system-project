@@ -3,9 +3,10 @@ package sd2223.trab2.servers.java;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sd2223.trab2.api.User;
 import sd2223.trab2.api.java.Result;
 import sd2223.trab2.api.java.Result.ErrorCode;
@@ -14,7 +15,7 @@ import sd2223.trab2.utils.Formatter;
 import sd2223.trab2.utils.Secret;
 
 public class JavaUsers extends JavaService implements Users {
-	private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
+	private static Logger Log = LoggerFactory.getLogger(JavaUsers.class);
 
 	//Map to save all Users from this domain
 	private final Map<String,User> users;
@@ -36,19 +37,19 @@ public class JavaUsers extends JavaService implements Users {
 	 */
 	@Override
 	public Result<String> createUser(User user) {
-		Log.info("createUser : " + user);
+		Log.info("createUser: {} ", user);
 		
 		// Check if user data is valid
 		if(user.getName() == null || user.getPwd() == null || user.getDisplayName() == null
 				|| user.getDomain() == null || !user.getDomain().equals(domain) ) {
-			Log.info("User object invalid.");
+			Log.error("User object invalid.");
 			return Result.error( ErrorCode.BAD_REQUEST );
 		}
 
 		synchronized (users){
 			// Insert user, checking if name already exists
 			if( users.putIfAbsent(user.getName(), user) != null ) {
-				Log.info("User already exists.");
+				Log.error("User already exists.");
 				return Result.error( ErrorCode.CONFLICT);
 			}
 		}
@@ -56,8 +57,10 @@ public class JavaUsers extends JavaService implements Users {
 		var userAddress =  Formatter.makeUserAddress( user.getName() , this.domain );
 		super.addRequest(
 				this.domain,
-				server -> server.createFeed( userAddress , secret )
+				server -> server.createFeed( userAddress , secret ),
+				true
 		);
+		Log.info("User created.");
 		return Result.ok( userAddress );
 	}
 
@@ -69,28 +72,20 @@ public class JavaUsers extends JavaService implements Users {
 	 */
 	@Override
 	public Result<User> getUser(String name, String pwd) {
-		Log.info("getUser : user = " + name + "; pwd = " + pwd);
+		Log.info("getUser : user = {} ; pwd = {}", name, pwd);
 		
 		// Check if user is valid
 		if(name == null || pwd == null) {
-			Log.info("Name or Password null.");
+			Log.error("Name or Password null.");
 			return Result.error( ErrorCode.BAD_REQUEST);
 		}
 
-		var user = this.getUser(name);
+		var err = this.authenticateUser(name, pwd);
+		if(! err.isOK() ) return err;
 
-		// Check if user exists
-		if( user == null ) {
-			Log.info("User does not exist.");
-			return Result.error( ErrorCode.NOT_FOUND);
-		}
-		
-		//Check if the password is correct
-		if( !user.getPwd().equals( pwd ) ) {
-			Log.info("Password is incorrect.");
-			return Result.error( ErrorCode.FORBIDDEN );
-		}
-		
+		var user = err.value();
+
+		Log.info("User found and returned!");
 		return Result.ok(user);
 	}
 
@@ -103,23 +98,17 @@ public class JavaUsers extends JavaService implements Users {
 	 */
 	@Override
 	public Result<User> updateUser(String name, String pwd, User user) {
-		Log.info("updateUser: name=" + name + " ; pwd= " + pwd + " ; user=" + user) ;
+		Log.info("updateUser: name= {} ; pwd= {} ; user= {}", name, pwd, user);
 
 		if( user != null && name != null && pwd != null ){
-			var oldUser = this.getUser(name);
 
-			if( oldUser == null ){
-				Log.info("User not found.");
-				return Result.error( ErrorCode.NOT_FOUND );
-			}
+			var err = this.authenticateUser(name, pwd);
+			if(! err.isOK() ) return err;
 
-			if(! oldUser.getPwd().equals(pwd) ) {
-				Log.info("Wrong password.");
-				return Result.error(ErrorCode.FORBIDDEN);
-			}
+			var oldUser= err.value();
 
 			if ( ! name.equals(user.getName())) {
-				Log.info("Invalid username.");
+				Log.error("Invalid username.");
 				return Result.error( ErrorCode.BAD_REQUEST );
 			}
 
@@ -134,6 +123,7 @@ public class JavaUsers extends JavaService implements Users {
 				users.put(name, user);
 			}
 
+			Log.info("Updates performed!!");
 			return Result.ok(user);
 
 		} else {
@@ -149,24 +139,17 @@ public class JavaUsers extends JavaService implements Users {
 	 */
 	@Override
 	public Result<User> deleteUser(String name, String pwd) {
-		Log.info("deleteUser: name=" + name + " ; pwd=" + pwd);
+		Log.info("deleteUser: name= {} ; pwd= {}", name, pwd);
 
 		if( name == null || pwd == null ) {
-			Log.info("Username or password nil.");
+			Log.error("Username or password nil.");
 			return Result.error(ErrorCode.BAD_REQUEST);
 		}
 
-		var user = this.getUser(name);
+		var err = this.authenticateUser(name, pwd);
+		if(! err.isOK() ) return err;
 
-		if( user == null ) {
-			Log.info("User does not exist.");
-			return Result.error( ErrorCode.NOT_FOUND);
-		}
-
-		if( !user.getPwd().equals( pwd)) {
-			Log.info("Password is incorrect.");
-			return Result.error( ErrorCode.FORBIDDEN);
-		}
+		var user = err.value();
 
 		synchronized ( users ) {
 			users.remove(name);
@@ -228,6 +211,20 @@ public class JavaUsers extends JavaService implements Users {
 		}
 	}
 
+	private Result<User> authenticateUser(String name, String pwd){
+		var user = this.getUser(name);
+
+		if( user == null ) {
+			Log.error("User does not exist.");
+			return Result.error( ErrorCode.NOT_FOUND);
+		}
+
+		if( !user.getPwd().equals( pwd)) {
+			Log.error("Password is incorrect.");
+			return Result.error( ErrorCode.FORBIDDEN);
+		}
+		return Result.ok(user);
+	}
 	/*
 		private Feeds getMyFeedsServer(){
 			var ds = Discovery.getInstance();
