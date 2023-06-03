@@ -28,7 +28,6 @@ public class Formatter {
 
     /**
      * @param host host of the server
-     * @param port the server port
      * @return a rest URI (ends with /rest)
      */
     public static URI getRestURI(String host){
@@ -37,7 +36,6 @@ public class Formatter {
 
     /**
      * @param host host of the server
-     * @param port the server port
      * @return a SOAP URI (ends with /soap)
      */
     public static URI getSoapURI(String host) {

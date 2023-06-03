@@ -31,17 +31,15 @@ public class SoapServer {
 
 			Object implementor = switch (stype) {
 				case USERS ->  new SoapUsersWebService((Users) service);
-				case FEEDS->  new SoapFeedsWebService((Feeds) service);
-				case PROXY ->  {
-					throw new RuntimeException("NOT IMPLEMENTED");
-				}
+				case FEEDS ->  new SoapFeedsWebService((Feeds) service);
+				case PROXY ->  throw new RuntimeException("NOT IMPLEMENTED");
 				case REPLICATION ->  throw new RuntimeException("Bad service type");
 			};
 			var server = HttpsServer.create(new InetSocketAddress(serverURI.getHost(), serverURI.getPort()), 0);
+			var endpoint = Endpoint.create(implementor);
+
 			server.setExecutor(Executors.newCachedThreadPool());
 			server.setHttpsConfigurator(new HttpsConfigurator(SSLContext.getDefault()));
-
-			var endpoint = Endpoint.create(implementor);
 
 			endpoint.publish(server.createContext(serverURI.getPath()));
 			server.start();

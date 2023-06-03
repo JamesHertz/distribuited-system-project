@@ -71,14 +71,14 @@ public class Main {
         var serverProtocol = switch (service){
             case "rest_feeds", "rest_users", "proxy" -> Protocol.REST;
             case "soap_feeds", "soap_users" -> Protocol.SOAP;
-            default -> Protocol.REPLICATION;
+            default -> Protocol.REPLICATION; // "replication"
         };
 
         var serviceType= switch (service){
             case "rest_feeds", "soap_feeds" -> ServiceType.FEEDS;
             case "rest_users", "soap_users" -> ServiceType.USERS;
             case "replication" -> ServiceType.REPLICATION;
-            default -> ServiceType.PROXY;
+            default -> ServiceType.PROXY; // "proxy"
         };
 
         Service svc = switch (serviceType){

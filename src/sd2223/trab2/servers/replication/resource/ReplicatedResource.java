@@ -282,7 +282,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     private boolean canExecute(Update update){
         var servers = this.zk.getServers();
-        var request_nr = servers.size() - 1;
+        var request_nr = servers.size();
 
         if(request_nr < REQUIRED_CONFIRMATIONS) return false; // DO not execute when it's below this :)
 
@@ -290,7 +290,6 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
         Semaphore sem = new Semaphore(0);
 
         for(var server : servers){
-            if(server.serverID() == this.zk.getServerID()) continue;
             new Thread( () -> {
                 var client = ClientFactory.getReplicatedClient(server.severURI(), this);
                 errors.add(
