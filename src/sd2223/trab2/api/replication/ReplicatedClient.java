@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface ReplicatedClient extends Feeds {
 
-    Result<Void> update(String secret, Update update);
+    Result<Integer> update(String secret, Update update);
 
     Result<List<Update>> getUpdates(String secret);
 }

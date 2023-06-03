@@ -12,7 +12,6 @@ public class RestUsersResource extends RestResource implements UsersService {
 
 	final Users impl;
 
-
 	public RestUsersResource(Users impl) {
 		this.impl = impl;
 	}

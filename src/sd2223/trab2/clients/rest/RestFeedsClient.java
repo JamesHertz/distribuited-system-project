@@ -172,7 +172,7 @@ public class RestFeedsClient extends RestClient implements ReplicatedClient {
 
 
     @Override
-    public Result<Void> update(String secret, Update update) {
+    public Result<Integer> update(String secret, Update update) {
         return super.reTry( () -> {
             var res = target.path(ReplicatedFeedsService.UPDATE)
                     .queryParam(FeedsService.SECRET, secret)
@@ -180,7 +180,7 @@ public class RestFeedsClient extends RestClient implements ReplicatedClient {
                     .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .post(Entity.entity(update, MediaType.APPLICATION_JSON));
 
-            return super.toJavaResult(res, Void.class);
+            return super.toJavaResult(res, Integer.class);
         });
     }
 

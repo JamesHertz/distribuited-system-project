@@ -13,7 +13,6 @@ import sd2223.trab2.api.Update;
 import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
 import sd2223.trab2.api.replication.ReplicatedFeedsService;
-import sd2223.trab2.api.rest.FeedsService;
 import sd2223.trab2.clients.ClientFactory;
 import sd2223.trab2.servers.replication.ReplicatedServer;
 import sd2223.trab2.servers.rest.resources.RestResource;
@@ -26,18 +25,20 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 public class ReplicatedResource  extends RestResource implements ReplicatedFeedsService, VersionProvider{
     private final Feeds impl;
     private final ZookeeperClient zk;
-    private long version = 0L;
+    private AtomicLong version;
 
     private static final Logger Log = LoggerFactory.getLogger(ReplicatedServer.class);
 
     // simplificar -> version <= current
     public ReplicatedResource(Feeds impl, String serviceID, URI serverURI) throws  Exception{
-        this.impl = impl;
+        this.impl    = impl;
+        this.version = new AtomicLong(0);
         this.zk = new ZookeeperClient(serviceID, serverURI.toString(), w -> {
             System.out.println("doing something fun :)");
         });
@@ -46,7 +47,11 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     private  <T> T fromJavaResult(Supplier<Result<T>> supplier) {
         return switch (this.zk.getState()){
-            case PRIMARY -> super.fromJavaResult( supplier.get() );
+            case PRIMARY -> {
+                var res = supplier.get();
+                if(res.isOK()) version.incrementAndGet();
+                yield super.fromJavaResult( res );
+            }
             case OTHER -> throw new WebApplicationException(
                     Response.temporaryRedirect(
                             this.zk.getPrimaryNode().severURI()
@@ -65,29 +70,10 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
             Update up = Update.toUpdate(
                     CREATE_MESSAGE, user, pwd, JSON.encode(msg)
             );
-            CountDownLatch cd = new CountDownLatch(1); // todo: look at this later
-            var errors = new ConcurrentLinkedDeque<Result<?>>();
-            for(var server : this.zk.getServers()){
-                if(server.serverID() == this.zk.getServerID()) continue;
-                new Thread( () -> {
-                    var client = ClientFactory.getReplicatedClient(server.severURI(), this);
-                    errors.add(
-                            client.update(Secret.getSecret(), up)
-                    );
-                    cd.countDown();
-                }).start();
-            }
-            try{
-                cd.await();
-            }catch (InterruptedException ignore){ }
 
-            for(var err : errors){
-                if(err.isOK())
-                    return impl.postMessage(user, pwd, msg);
-                if (err.error() != Result.ErrorCode.TIMEOUT )
-                    return Result.error( err.error() );
-            }
-            return Result.error( Result.ErrorCode.SERVICE_UNAVAILABLE );
+            // TODO: store operation in a list of operations
+            return this.canExecute(up) ?  impl.postMessage(user, pwd, msg)
+                    :  Result.error( Result.ErrorCode.SERVICE_UNAVAILABLE );
         });
     }
 
@@ -158,24 +144,26 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
     }
 
     @Override
-    public void update(Long version, String secret, Update update) {
+    public int update(Long version, String secret, Update update) {
+        Log.info("update: version: {} ; secret: {}, update: {}", version, secret, update);
         if(!secret.equals(Secret.getSecret()))
             throw new WebApplicationException(Status.UNAUTHORIZED);
-        if(this.getCurrentVersion() == version){
-            var operation = Operations.valueOf(update.getOperation());
-            var args = update.getArgs();
-            // TODO: add the number of arguments of each operation
-            // TODO: add a try/catch that if we get an error return badrequest
-            if(operation == null) throw new WebApplicationException( Status.BAD_REQUEST );
 
-            switch (operation){
-                case CREATE_MESSAGE -> impl.postMessage(args[0], args[1], JSON.decode(args[2], Message.class));
-                default -> {
-                    Log.info("Whatever");
-                }
-            }
+        if(this.getCurrentVersion() == version){
+            var res = this.execute_operation(update);
+            Status status;
+
+            if( res.isOK() ) {
+                this.version.incrementAndGet();
+                status = Status.OK;
+            } else
+                status = RestResource.statusCodeFrom( res );
+
+            Log.info("Operation status: {}", status);
+            return status.getStatusCode();
         }else {
-            // what to do?
+            // TODO: handle this :)
+            throw new WebApplicationException( Status.SERVICE_UNAVAILABLE );
         }
     }
 
@@ -188,7 +176,49 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
     @Override
     public synchronized long getCurrentVersion() {
-        return this.version;
+        return this.version.get();
     }
 
+    private boolean canExecute(Update update){
+        var errors = new ConcurrentLinkedDeque<Result<?>>();
+        CountDownLatch cd = new CountDownLatch(1); // todo: look at this later
+        for(var server : this.zk.getServers()){
+            if(server.serverID() == this.zk.getServerID()) continue;
+            new Thread( () -> {
+                var client = ClientFactory.getReplicatedClient(server.severURI(), this);
+                errors.add(
+                        client.update(Secret.getSecret(), update)
+                );
+                cd.countDown();
+            }).start();
+        }
+        try{
+            cd.await();
+        }catch (InterruptedException ignore){ }
+
+        for(var err : errors){
+            if(err.isOK()) return true;
+        }
+        return false;
+    }
+
+    private Result<?> execute_operation(Update update) {
+        Operations operation;
+        if (update == null || (operation = Operations.valueOf(update.getOperation())) == null)
+            throw new WebApplicationException(Status.BAD_REQUEST);
+
+        var args = update.getArgs();
+        return switch (operation) {
+            case CREATE_MESSAGE   -> impl.postMessage(args[0], args[1], JSON.decode(args[2], Message.class));
+            case REMOVE_FROM_FEED -> impl.removeFromPersonalFeed(args[0], Long.parseLong(args[1]), args[2]);
+            case CREATE_FEED -> impl.createFeed(args[0], args[1]);
+            case REMOVE_FEED -> impl.removeFeed(args[0], args[1]);
+            case SUBSCRIBE_USER   -> impl.subscribeUser(args[0], args[1], args[2]);
+            case UNSUBSCRIBE_USER -> impl.unSubscribeUser(args[0], args[1], args[2]);
+            case SUBSCRIBE_SERVER -> impl.subscribeServer(args[0], args[1], args[2]);
+            case UNSUBSCRIBE_SERVER -> impl.unsubscribeServer(args[0], args[1], args[2]);
+            case REMOVE_EXT_FEED  -> impl.removeExtFeed(args[0], args[1]);
+            case CREATE_EXT_FEED_MSG -> impl.createExtFeedMessage(args[0], args[1], JSON.decode(args[2], Message.class));
+        };
+    }
 }

@@ -3,7 +3,6 @@ package sd2223.trab2.api.replication;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import sd2223.trab2.api.Update;
-import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.rest.FeedsService;
 
 import java.util.List;
@@ -20,7 +19,8 @@ public interface ReplicatedFeedsService extends FeedsService{
     @POST
     @Path(UPDATE ) // update/<{version}
     @Consumes(MediaType.APPLICATION_JSON)
-    void update(@HeaderParam(FeedsService.HEADER_VERSION) Long version, @QueryParam(FeedsService.SECRET) String secret, Update update);
+    @Produces(MediaType.APPLICATION_JSON)
+    int update(@HeaderParam(FeedsService.HEADER_VERSION) Long version, @QueryParam(FeedsService.SECRET) String secret, Update update);
 
     @GET
     @Path( OPERATIONS + "/{" + VERSION + "}")
