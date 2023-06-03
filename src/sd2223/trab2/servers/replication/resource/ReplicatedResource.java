@@ -193,14 +193,10 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
 
         if(this.getCurrentVersion() == version){
             var res = this.execute_operation(update);
-            Status status;
 
-            if( res.isOK() ) {
-                this.version.incrementAndGet();
-                status = Status.OK;
-            } else
-                status = RestResource.statusCodeFrom( res );
+            if(this.success(res)) this.version.incrementAndGet();
 
+            Status status = res.isOK() ? Status.OK : RestResource.statusCodeFrom( res );
             Log.info("Operation status: {}", status);
             return status.getStatusCode();
         } else {
@@ -227,7 +223,7 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
                 Result<T> res;
                 if(this.canExecute(update)){
                     res = operation.get(); // executes operation
-                    if(res.isOK()){
+                    if(this.success(res)){
                         version.incrementAndGet();
                         // save update
                     }
@@ -303,4 +299,8 @@ public class ReplicatedResource  extends RestResource implements ReplicatedFeeds
         };
     }
 
+
+    private boolean success(Result<?> res){
+        return res.isOK() || res.error() == ErrorCode.NO_CONTENT;
+    }
 }
