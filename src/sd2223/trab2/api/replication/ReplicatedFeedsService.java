@@ -25,6 +25,6 @@ public interface ReplicatedFeedsService extends FeedsService{
     @GET
     @Path( OPERATIONS + "/{" + VERSION + "}")
     @Produces(MediaType.APPLICATION_JSON)
-    List<Update> getOperations(@PathParam(VERSION) Long version, @PathParam(FeedsService.SECRET) String secret);
+    List<Update> getOperations(@PathParam(VERSION) long version, @QueryParam(FeedsService.SECRET) String secret);
 
 }

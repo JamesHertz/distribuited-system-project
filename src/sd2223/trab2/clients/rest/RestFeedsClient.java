@@ -6,7 +6,6 @@ import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import sd2223.trab2.api.Message;
 import sd2223.trab2.api.Update;
-import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Result;
 import sd2223.trab2.api.replication.ReplicatedClient;
 import sd2223.trab2.api.replication.ReplicatedFeedsService;
@@ -185,15 +184,14 @@ public class RestFeedsClient extends RestClient implements ReplicatedClient {
     }
 
     @Override
-    public Result<List<Update>> getUpdates(String secret) {
+    public Result<List<Update>> getOperations(long version, String secret) {
         return super.reTry( () -> {
-            var res = target.path(ReplicatedFeedsService.UPDATE)
+            var res = target.path(ReplicatedFeedsService.OPERATIONS).path(Long.toString(version))
                     .queryParam(FeedsService.SECRET, secret)
                     .request()
-                    .header(FeedsService.HEADER_VERSION, provider.getCurrentVersion())
                     .get();
 
-            return super.toJavaResult(res, new GenericType<List<Update>>(){});
+            return super.toJavaResult(res, new GenericType<>(){});
         });
     }
 }

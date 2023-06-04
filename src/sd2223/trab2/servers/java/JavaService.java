@@ -13,10 +13,8 @@ import java.net.URI;
 import java.util.*;
 
 public class JavaService {
-    static {
-        System.setProperty("org.slf4j.simpleLogger.log." + JavaUsers.class.getName(), "debug");
-    }
-    private static Logger Log = LoggerFactory.getLogger(JavaUsers.class.getName());
+
+    private static Logger Log = LoggerFactory.getLogger(JavaUsers.class);
 
     private final Map<String, RequestConsumer> consumers;
 
