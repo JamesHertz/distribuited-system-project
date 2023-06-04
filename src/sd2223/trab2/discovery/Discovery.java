@@ -21,11 +21,13 @@ public interface Discovery {
 
 	/**
 	 * Get discovered URIs for a given service name
-	 * @param serviceName - name of the service
+	 * @param serverID - name of the service
 	 * @param minReplies - minimum number of requested URIs. Blocks until the number is satisfied.
 	 * @return array with the discovered URIs for the given service name.
 	 */
-	public URI[] knownUrisOf(String serviceName, int minReplies);
+	public URI[] knownUrisOf(String serverID, int minReplies);
+
+	public URI getRandomUriOf(String serverID);
 
 	/**
 	 * Get the instance of the Discovery service
@@ -79,11 +81,11 @@ class DiscoveryImpl implements Discovery {
 	}
 
 	@Override
-	public void announce(String serviceName, String serviceURI) {
-		Log.info(String.format("Starting Discovery announcements on: %s for: %s -> %s\n", DISCOVERY_ADDR, serviceName,
+	public void announce(String serverID, String serviceURI) {
+		Log.info(String.format("Starting Discovery announcements on: %s for: %s -> %s\n", DISCOVERY_ADDR, serverID,
 				serviceURI));
 
-		var pktBytes = String.format("%s%s%s", serviceName, DELIMITER, serviceURI).getBytes();
+		var pktBytes = String.format("%s%s%s", serverID, DELIMITER, serviceURI).getBytes();
 		var pkt = new DatagramPacket(pktBytes, pktBytes.length, DISCOVERY_ADDR);
 
 		// start thread to send periodic announcements
@@ -122,8 +124,15 @@ class DiscoveryImpl implements Discovery {
 		return res.orElse(NO_URIS);
 	}
 
-	private synchronized Optional<URI[]> getRecords(String serviceName){
-		var values = this.records.get(serviceName);
+	@Override
+	public URI getRandomUriOf(String serverID) {
+		var recs = this.getRecords(serverID);
+		return recs.isEmpty() ? null
+				: recs.get()[ (int) ( Math.random() * recs.get().length )];
+	}
+
+	private synchronized Optional<URI[]> getRecords(String severID){
+		var values = this.records.get(severID);
 		URI[] records;
 		return values == null || (records = makeRecords(values)).length == 0
 				? Optional.empty() : Optional.of(records);
@@ -151,14 +160,11 @@ class DiscoveryImpl implements Discovery {
 
 						var parts = msg.split(DELIMITER);
 						if (parts.length == 2) {
-							var serviceName = parts[0];
+							var serverID = parts[0];
 							var uri = URI.create(parts[1]);
 							synchronized (this){
-								var record_values = records.computeIfAbsent(serviceName, k -> new HashMap<>());
+								var record_values = records.computeIfAbsent(serverID, k -> new HashMap<>());
 								record_values.put(uri, System.currentTimeMillis());
-								// record_values.add(new Record( // TODO: think about this later :)
-								// 		System.currentTimeMillis(), uri
-								// ));
 							}
 						}
 

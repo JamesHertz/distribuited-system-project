@@ -48,12 +48,9 @@ public class JavaService {
     }
 
     protected Feeds getFeedServer(String serverDomain) {
-        var ds = Discovery.getInstance();
-        // TODO: make the client such a way that upon each request it uses the discovery to get a new URI
-        URI[] serverURI = ds.knownUrisOf(Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE), 1);
-        Log.debug("discovery for: {} (res={})", serverDomain, Arrays.toString(serverURI));
-        if (serverURI.length == 0) return null;
-        return ClientFactory.getFeedsClient(serverURI[0]);
+        return ClientFactory.getFeedsClient(
+                Formatter.getServiceID(serverDomain, Formatter.FEEDS_SERVICE)
+        );
     }
 
     // represents a request to a feed server

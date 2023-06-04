@@ -6,9 +6,11 @@ import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.Users;
 import sd2223.trab2.api.replication.ReplicatedClient;
 import sd2223.trab2.clients.rest.RestFeedsClient;
+import sd2223.trab2.clients.rest.SimpleRestFeedsClient;
 import sd2223.trab2.clients.rest.RestUsersClient;
 import sd2223.trab2.clients.soap.SoapFeedsClient;
 import sd2223.trab2.clients.soap.SoapUsersClient;
+import sd2223.trab2.discovery.Discovery;
 import sd2223.trab2.servers.replication.ReplicatedServer;
 
 public class ClientFactory {
@@ -31,14 +33,28 @@ public class ClientFactory {
 		var uriString = serverURI.toString();
 
 		if (uriString.endsWith(REST))
-			return new RestFeedsClient(serverURI);
+			return  new SimpleRestFeedsClient(serverURI);
 		else if (uriString.endsWith(SOAP))
 			return new SoapFeedsClient(serverURI);
 		else
 			throw new RuntimeException("Unknown service type..." + uriString);
 	}
 
+	public static Feeds getFeedsClient(String serverID){
+		var serverURI = Discovery.getInstance().getRandomUriOf(serverID);
+		if(serverURI == null) return null;
+
+		var uriString  = serverURI.toString();
+		if (uriString.endsWith(REST))
+			return  new RestFeedsClient(serverURI, serverID);
+		else if (uriString.endsWith(SOAP))
+			return new SoapFeedsClient(serverURI);
+		else
+			throw new RuntimeException("Unknown service type..." + uriString);
+	}
+
+
 	public static ReplicatedClient getReplicatedClient(URI serverURI, ReplicatedServer.VersionProvider provider){
-		return new RestFeedsClient(serverURI, provider);
+		return new SimpleRestFeedsClient(serverURI, provider);
 	}
 }

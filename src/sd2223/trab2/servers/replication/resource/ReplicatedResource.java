@@ -67,6 +67,7 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         this.operations = new ArrayList<>(100);
         this.version = new AtomicLong(0);
         this.zk = new ZookeeperClient(serviceID, serverURI.toString(), w -> {
+            // if( servers.size() > REQUIRED_CONFIRMATIONS )
             this.updateToMostRecentVersion();
             System.out.println("doing something fun :)");
         });
@@ -113,6 +114,7 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
 
     @Override
     public List<Message> getMessages(Long version, String user, long time) {
+        Log.info("getMessages: version={} ; user={} ; time={}", version, user, time);
         return this.executeReadOperation(version, () -> impl.getMessages(user, time));
     }
 
@@ -227,13 +229,15 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         if (!secret.equals(Secret.getSecret()))
             throw new WebApplicationException(Status.UNAUTHORIZED);
 
-        if (this.getCurrentVersion() != version)
+        if (this.getCurrentVersion() != version) // TODO: check if the update is coming from the primary
             this.updateToMostRecentVersion();
 
         if (this.getCurrentVersion() == version) { // if it worked
             var res = this.execute_operation(update);
 
-            if (this.success(res)) this.version.incrementAndGet();
+            if (this.success(res))
+                this.addOperation(update);
+
 
             Status status = res.isOK() ? Status.OK : RestResource.statusCodeFrom(res);
             Log.info("Operation status: {}", status);
@@ -249,10 +253,11 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         if (!Secret.getSecret().equals(secret))
             throw new WebApplicationException(Status.UNAUTHORIZED);
 
-        if (version > this.getCurrentVersion())
+        if (version >= this.getCurrentVersion())
             throw new WebApplicationException(Status.NOT_FOUND);
 
         synchronized (operations) {
+            Log.debug("operations.size(): {} ; this.getCurrentVersion(): {}", operations.size(), this.getCurrentVersion());
             var res =  operations.subList((int) version, operations.size());
             Log.info("updates sent: {}", res);
             return res;
@@ -273,11 +278,9 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
                 if (this.canExecute(update)) {
                     Log.info("Executing request...");
                     res = operation.get(); // executes operation
-                    if (this.success(res)) {
-                        version.incrementAndGet();
-                        // save update
+                    if (this.success(res)) // save update
                         this.addOperation(update);
-                    }
+
                 } else {
                     res = Result.error(ErrorCode.SERVICE_UNAVAILABLE);
                     Log.info("Cannot execute request...");
@@ -307,10 +310,13 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
     }
 
     private <T> T executeReadOperation(Long version, Supplier<Result<T>> supplier) {
-        if (version != null && version > this.getCurrentVersion()) // check if primary :)
+        Log.info("executeReadOperation: version={} ; current_version={}", version, this.getCurrentVersion());
+        if (version != null && version > this.getCurrentVersion()) {// check if primary :)
+            Log.debug("Server is behind getting the most recent version.");
             this.updateToMostRecentVersion(); // try to get to the most recent version and then do something else :)
+        }
         return super.fromJavaResult(
-                version == null || version <= this.version.get() ?
+                version == null || version <= this.getCurrentVersion() ?
                         supplier.get() : Result.error(ErrorCode.SERVICE_UNAVAILABLE)
         );
     }
@@ -354,23 +360,24 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         // we are assuming that from here below everything will be alright which may not be the case
         var args = update.getArgs();
         return switch (operation) {
-            case CREATE_MESSAGE -> impl.postMessage(args[0], args[1], JSON.decode(args[2], Message.class));
-            case REMOVE_FROM_FEED -> impl.removeFromPersonalFeed(args[0], Long.parseLong(args[1]), args[2]);
-            case CREATE_FEED -> impl.createFeed(args[0], args[1]);
-            case REMOVE_FEED -> impl.removeFeed(args[0], args[1]);
-            case SUBSCRIBE_USER -> impl.subscribeUser(args[0], args[1], args[2]);
-            case UNSUBSCRIBE_USER -> impl.unSubscribeUser(args[0], args[1], args[2]);
-            case SUBSCRIBE_SERVER -> impl.subscribeServer(args[0], args[1], args[2]);
-            case UNSUBSCRIBE_SERVER -> impl.unsubscribeServer(args[0], args[1], args[2]);
-            case REMOVE_EXT_FEED -> impl.removeExtFeed(args[0], args[1]);
-            case CREATE_EXT_FEED_MSG ->
-                    impl.createExtFeedMessage(args[0], args[1], JSON.decode(args[2], Message.class));
+            case CREATE_MESSAGE      -> impl.postMessage(args[0], args[1], JSON.decode(args[2], Message.class));
+            case REMOVE_FROM_FEED    -> impl.removeFromPersonalFeed(args[0], Long.parseLong(args[1]), args[2]);
+            case CREATE_FEED         -> impl.createFeed(args[0], args[1]);
+            case REMOVE_FEED         -> impl.removeFeed(args[0], args[1]);
+            case SUBSCRIBE_USER      -> impl.subscribeUser(args[0], args[1], args[2]);
+            case UNSUBSCRIBE_USER    -> impl.unSubscribeUser(args[0], args[1], args[2]);
+            case SUBSCRIBE_SERVER    -> impl.subscribeServer(args[0], args[1], args[2]);
+            case UNSUBSCRIBE_SERVER  -> impl.unsubscribeServer(args[0], args[1], args[2]);
+            case REMOVE_EXT_FEED     -> impl.removeExtFeed(args[0], args[1]);
+            case CREATE_EXT_FEED_MSG -> impl.createExtFeedMessage(args[0], args[1], JSON.decode(args[2], Message.class));
             case REMOVE_EXT_FEED_MSG -> impl.removeExtFeedMessage(args[0], Long.parseLong(args[1]), args[2]);
         };
     }
 
 
     // TODO: find a better solution than this
+    // TODO: make sure we are only doing one update per instance
+    // TODO: think about states (by Iago)
     private void updateToMostRecentVersion() {
         Log.debug("Getting the most recent version");
         if (this.zk == null || this.zk.getServers().isEmpty()) {
@@ -387,7 +394,8 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
                         server.severURI(), this
                 );
                 var res = client.getOperations(this.getCurrentVersion(), Secret.getSecret());
-                if (res.isOK()) updates.add(res.value());
+                if (res.isOK())
+                    updates.add(res.value());
                 cd.countDown();
             }).start();
         }
@@ -398,7 +406,6 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
 
         Log.debug("updates gotten: {}", updates);
         var mostRecent = updates.stream()
-                .filter(ups -> !ups.isEmpty())
                 .max(Comparator.comparingInt(List::size));
 
         if (mostRecent.isEmpty()) {
@@ -410,7 +417,6 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         for (var up : mostRecent.get()) {
             this.execute_operation(up);  // execute
             this.addOperation(up); // save
-            this.version.incrementAndGet(); // update the current version
         }
         Log.debug("updated to version: {}", this.getCurrentVersion());
     }
@@ -418,6 +424,7 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
     private void addOperation(Update update) {
         synchronized (operations) {
             operations.add(update);
+            this.version.incrementAndGet();
         }
     }
 
