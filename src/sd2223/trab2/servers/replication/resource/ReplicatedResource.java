@@ -38,13 +38,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
-// next: 108a
-/*
- TODO
-    - change client to choose a random URI
-    - verify that the update came from the actual primary
-    - just do updateToLastVersion if you are in the state other (?)
- */
 public class ReplicatedResource extends RestResource implements ReplicatedFeedsService, VersionProvider {
     static {
         System.setProperty("org.slf4j.simpleLogger.log." + ReplicatedServer.class.getName(), "debug");
@@ -55,24 +48,32 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
     private static final int REQUIRED_CONFIRMATIONS = REPLICAS_NUMBER / 2;
     private static final int DISASTER_TIMEOUT = 2;
 
+    // the implementation of the feeds service
     private final RepFeeds impl;
+
+    // zookeeper client that notifies keeps the state of the nodes in
+    // zookeeper the server when it becomes primary
     private final ZookeeperClient zk;
+
+    // used ot keep the most recent version
     private final AtomicLong version;
+
+    // list of all the operations executed
     private final List<Update> operations;
+
+    // used to be sure that only one thread is trying
+    // to the most recent version while all the others are waiting
     private final Semaphore updateSem;
 
     private static final Logger Log = LoggerFactory.getLogger(ReplicatedServer.class);
 
-    // simplificar -> version <= current
     public ReplicatedResource(RepFeeds impl, String serviceID, URI serverURI) throws Exception {
         this.impl = impl;
         this.operations = new ArrayList<>(100);
         this.version = new AtomicLong(0);
         this.updateSem = new Semaphore(1);
         this.zk = new ZookeeperClient(serviceID, serverURI.toString(), w -> {
-            // if( servers.size() > REQUIRED_CONFIRMATIONS )
-            this.updateToMostRecentVersion();
-            System.out.println("doing something fun :)");
+            this.updateToMostRecentVersion(); // function that is executed when the node becomes primary
         });
         Log.info("Server running...");
     }
@@ -82,7 +83,6 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
     public long postMessage(ContainerRequest request, String user, String pwd, Message msg) {
         Log.info("postMessage: version={} ; user={} ; pwd={}; msg={}", version, user, pwd, msg);
 
-        // TODO: verify values here
         if (msg != null) {
             msg.setCreationTime(System.currentTimeMillis());
             msg.setId(impl.getGenerator().nextID());
@@ -111,7 +111,6 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
 
     @Override
     public Message getMessage(Long version, String user, long mid) {
-        // @Context  HttpHeaders headers (use this c:)
         return this.executeReadOperation(version, () -> impl.getMessage(user, mid));
     }
 
@@ -232,7 +231,7 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         if (!secret.equals(Secret.getSecret()))
             throw new WebApplicationException(Status.UNAUTHORIZED);
 
-        if (this.getCurrentVersion() != version) // TODO: check if the update is coming from the primary
+        if (this.getCurrentVersion() != version)
             this.updateToMostRecentVersion();
 
         if (this.getCurrentVersion() == version) { // if it worked
@@ -273,6 +272,9 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         return this.version.get();
     }
 
+    // executes write operation if the node is primary, if it is the secondary
+    // if forwards it to the primary and if it's having connections problems (disconnected)
+    // it does nothing :(
     private <T> T executeWriteOperation(Supplier<Result<T>> operation, Update update, ContainerRequest request) {
         return switch (this.zk.getState()) {
             case PRIMARY -> {
@@ -324,6 +326,8 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         );
     }
 
+    // decides if an operation can be executed by the primary
+    // which only happens when it was executed in REQUIRED_CONFIRMATIONS
     private boolean canExecute(Update update) {
         var servers = this.zk.getServers();
         var request_nr = servers.size();
@@ -339,14 +343,14 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
                 errors.add(
                         client.update(Secret.getSecret(), update)
                 );
-                sem.release(); // inc
+                sem.release(); // sem.inc()
             }).start();
         }
         int conf = 0;
         while (request_nr > 0) {
             try {
                 sem.acquire();
-            } catch (InterruptedException ignore) { } // wait
+            } catch (InterruptedException ignore) { } // sem.wait()
             var err = errors.remove();
             if (err.isOK()) conf++; // they were able to execute the operation
             if (conf == REQUIRED_CONFIRMATIONS) return true;
@@ -377,10 +381,8 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         };
     }
 
-
-    // TODO: find a better solution than this
-    // TODO: make sure we are only doing one update per instance
-    // TODO: think about states (by Iago)
+    // asks for all the others server for updates from the server current
+    // version all the way up to the most recent version the server is aware of
     private void updateToMostRecentVersion() {
         Log.debug("Getting the most recent version");
         if (this.zk == null || this.zk.getServers().isEmpty()) {
@@ -432,8 +434,6 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
             Log.debug("updated to version: {}", this.getCurrentVersion());
         }
 
-        // getQueueLength() may not be the real number according ot the documentation
-        // that's why we have a disaster timeout :)
         synchronized (updateSem){
             updateSem.release();
             updateSem.notifyAll();

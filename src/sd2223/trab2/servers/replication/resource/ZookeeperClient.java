@@ -20,12 +20,9 @@ public class ZookeeperClient implements Watcher {
         System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxn", "off");
         System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.common.X509Util", "off");
         System.setProperty("org.slf4j.simpleLogger.log.org.apache.zookeeper.ClientCnxnSocket", "off");
-        // configuration for slf4j
-        System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
-        System.setProperty("org.slf4j.simpleLogger.dateTimeFormat", "yyyy-MM-dd HH:mm:ss:SSS Z");
     }
 
-    private static final String SERVERS = "kafka"; //"zookeeper";
+    private static final String SERVERS = "kafka";
     private static final int TIMEOUT = 5000;
     private static final Logger Log = LoggerFactory.getLogger(ZookeeperClient.class);
 
@@ -38,7 +35,7 @@ public class ZookeeperClient implements Watcher {
     private ZooKeeper _client;
     private RepServerInfo primaryNode;
     private long serverID;
-    private boolean networkErrors;
+    private boolean networkErrors; // true when this node is having connections issues with zookeeper
 
     public ZookeeperClient(String serviceID, String serverURI, Consumer<ZookeeperClient> callback) {
         this.rootNode = "/" + serviceID; // <domain>:[ feeds | users ]
@@ -71,6 +68,7 @@ public class ZookeeperClient implements Watcher {
         return this.serverID;
     }
 
+    // all servers information except its own
     public List<RepServerInfo> getServers() {
         return cache;
     }
@@ -192,6 +190,11 @@ public class ZookeeperClient implements Watcher {
         }
     }
 
+    // state that a node can be at
+    // PRIMARY      - it is the primary node which can execute write operations
+    // OTHER        - secondary node only executes read operations with version below its current version
+    //                or write operations that comes from the primary
+    // DISCONNECTED - node is having network issues connecting to the zookeeper
     public enum State {
         PRIMARY, OTHER, DISCONNECTED;
     }

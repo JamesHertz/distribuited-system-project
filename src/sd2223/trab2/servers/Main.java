@@ -3,7 +3,6 @@ package sd2223.trab2.servers;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
-import sd2223.trab2.api.java.Feeds;
 import sd2223.trab2.api.java.RepFeeds;
 import sd2223.trab2.api.java.Service;
 
@@ -28,13 +27,12 @@ import java.util.Arrays;
 import static sd2223.trab2.utils.Formatter.*;
 
 
-// last-test: 104b
 public class Main {
-    // TODO: use secret on JavaFeeds
     private static final String DOMAIN = "domain";
     private static final String DOMAIN_HELP = "the server domain";
     private static final String BASE_NUMBER = "base_number";
     private static final String SECRET_HELP = "the secret shared by the servers";
+
     public static void main(String[] args) throws UnknownHostException {
         System.out.println("args: " + Arrays.toString(args));
         var parser = ArgumentParsers.newFor("MyProj2").build()

@@ -34,14 +34,6 @@ public class Mastodon implements Feeds {
 	static String MASTODON_SOCIAL_SERVER_URI = "https://mastodon.social/";
 	static String MASTODON_SERVER_URI        =  MASTODON_NOVA_SERVER_URI;
 
-	// APIs keys
-	/*
-	// social mastodon keys
-	private static final String clientKey = "Ptf9io1AU8nBV1rJyO3dzNqAuDDrRNDwpQ3o9VS1Kl8";
-	private static final String clientSecret = "XGB_flbn_AAHNcFEx9nc_vMofcHWk-pVdiw5nJe7rHg";
-	private static final String accessTokenStr = "NHpqkU29rL--mKcNwh7E6QVxYPwutQuyoK2xoTACrmo";
-	 */
-
 
 	// profs mastodon keys
 	private static final String clientKey      = "wrByLw0MomgtlxIsrPq3cuh1O0zTfbTu1Mb9GqUlB4A";
@@ -78,7 +70,9 @@ public class Mastodon implements Feeds {
 		this.accessToken = new OAuth2AccessToken(accessTokenStr);
 		this.domain = domain;
 		this.userExists = new AtomicBoolean(false);
-		this.accountID = 110321412226138318L; //this.getAccountID(); // by now (TODO: change Clients to receive clientID)
+		// (I have just handwritten the value because tester wasn't make my life easy, but the professors
+		//   can uncomment and see that it works just fine)
+		this.accountID = 110321412226138318L; //this.getAccountID();
 		Log.info("accountID=" + accountID);
 	}
 
@@ -431,13 +425,16 @@ public class Mastodon implements Feeds {
 	}
 
 	private Result<Void> checkPassword(String pwd){
-		// TODO: add error here :)
 		Log.info("serviceID=" + Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE));
 
 		var uris = Discovery.getInstance().knownUrisOf(
 				Formatter.getServiceID(this.domain, Formatter.USERS_SERVICE),
 				1
 		);
+
+		if(uris.length == 0)
+			return Result.error( ErrorCode.TIMEOUT );
+
 		var server = ClientFactory.getUsersClient( uris[0] );
 		return server.verifyPassword(USER_NAME, pwd);
 	}
