@@ -53,11 +53,13 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
     private static final int FAILURE_TOLERANCE = 1;
     private static final int REPLICAS_NUMBER = 2 * FAILURE_TOLERANCE + 1;
     private static final int REQUIRED_CONFIRMATIONS = REPLICAS_NUMBER / 2;
+    private static final int DISASTER_TIMEOUT = 2;
 
     private final RepFeeds impl;
     private final ZookeeperClient zk;
     private final AtomicLong version;
     private final List<Update> operations;
+    private final Semaphore updateSem;
 
     private static final Logger Log = LoggerFactory.getLogger(ReplicatedServer.class);
 
@@ -66,6 +68,7 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
         this.impl = impl;
         this.operations = new ArrayList<>(100);
         this.version = new AtomicLong(0);
+        this.updateSem = new Semaphore(1);
         this.zk = new ZookeeperClient(serviceID, serverURI.toString(), w -> {
             // if( servers.size() > REQUIRED_CONFIRMATIONS )
             this.updateToMostRecentVersion();
@@ -384,6 +387,16 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
             Log.debug("First call or no servers...");
             return;
         }
+
+        synchronized (updateSem){
+            if(!updateSem.tryAcquire()){
+                    try{
+                        updateSem.wait();
+                    }catch (InterruptedException ignore){ }
+                    return;
+            }
+        }
+
         var servers = this.zk.getServers();
         Log.debug("sending getOperation request for: {}", servers);
         var cd = new CountDownLatch(servers.size());
@@ -410,15 +423,21 @@ public class ReplicatedResource extends RestResource implements ReplicatedFeedsS
 
         if (mostRecent.isEmpty()) {
             Log.debug("Couldn't get any updates...");
-            return;
+        } else {
+            Log.debug("most recent: {}", mostRecent);
+            for (var up : mostRecent.get()) {
+                this.execute_operation(up);  // execute
+                this.addOperation(up); // save
+            }
+            Log.debug("updated to version: {}", this.getCurrentVersion());
         }
 
-        Log.debug("most recent: {}", mostRecent);
-        for (var up : mostRecent.get()) {
-            this.execute_operation(up);  // execute
-            this.addOperation(up); // save
+        // getQueueLength() may not be the real number according ot the documentation
+        // that's why we have a disaster timeout :)
+        synchronized (updateSem){
+            updateSem.release();
+            updateSem.notifyAll();
         }
-        Log.debug("updated to version: {}", this.getCurrentVersion());
     }
 
     private void addOperation(Update update) {
